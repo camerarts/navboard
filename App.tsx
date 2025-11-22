@@ -5,6 +5,7 @@ import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
 import CategoryModal from './components/CategoryModal';
 import LoginModal from './components/LoginModal';
+import DashboardWidgets from './components/DashboardWidgets';
 import { Bookmark, Category } from './types';
 import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES, CATEGORY_ICONS } from './constants';
 
@@ -364,6 +365,9 @@ const App: React.FC = () => {
 
         <div className="max-w-5xl mx-auto px-8 py-10 pb-32">
             
+            {/* Top Widgets Row */}
+            <DashboardWidgets />
+
             {/* Search Area */}
             <div className="mb-10 sticky top-4 z-30">
                 <SearchBar />
