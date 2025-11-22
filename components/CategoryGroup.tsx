@@ -110,16 +110,16 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
 
   return (
     <div 
-        className={`bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow duration-300 relative h-full w-full ${bookmarks.length === 0 ? 'border-dashed bg-slate-50/50' : ''}`}
+        className={`bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm border border-[var(--border-color)] hover:shadow-md transition-shadow duration-300 relative h-full w-full ${bookmarks.length === 0 ? 'border-dashed bg-[var(--bg-main)]/50' : ''}`}
         onDragOver={(e) => { e.preventDefault(); }} 
         onDrop={handleContainerDrop}
     >
       {/* Category Header */}
-      <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-50">
+      <div className="flex items-center gap-3 mb-5 pb-3 border-b border-[var(--border-color)]">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm ${category.color}`}>
           {Icon}
         </div>
-        <h2 className="text-lg font-bold text-slate-800">{category.name}</h2>
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">{category.name}</h2>
         
         {/* Edit/Delete Category Controls */}
         {isEditMode ? (
@@ -131,7 +131,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                             e.stopPropagation();
                             onEditCategory(category);
                         }}
-                        className="text-slate-400 hover:text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="text-[var(--text-secondary)] hover:text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-colors"
                         title="编辑分类"
                     >
                         <Edit2 size={16} />
@@ -140,26 +140,22 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                 {onDeleteCategory && (
                     <DeleteButton 
                         onDelete={() => onDeleteCategory(category.id)}
-                        className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg"
+                        className="text-[var(--text-secondary)] hover:text-red-500 p-2 hover:bg-red-50 rounded-lg"
                         size={16}
                     />
                 )}
-                <div className="cursor-move text-slate-300 p-2" title="拖动排序">
+                <div className="cursor-move text-[var(--text-secondary)] p-2" title="拖动排序">
                     <GripVertical size={16} />
                 </div>
             </div>
         ) : (
-            <span className="ml-auto text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+            <span className="ml-auto text-xs font-bold text-[var(--text-secondary)] bg-[var(--bg-subtle)] px-2.5 py-1 rounded-full">
               {bookmarks.length}
             </span>
         )}
       </div>
 
       {/* Bookmarks Grid */}
-      {/* Updated grid for full-width layout: 
-          Mobile: 1 col, Tablet: 3 cols, Desktop: 4-5 cols.
-          Removed the xl:grid-cols-1 forcing to ensure it looks good in full width rows. 
-      */}
       <div className={`grid gap-3 min-h-[40px] max-h-[280px] overflow-y-auto pr-2 ${
           !isEditMode 
             ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' 
@@ -184,10 +180,10 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                      e.stopPropagation();
                  }
               }}
-              className={`flex items-center rounded-xl bg-slate-50 border border-transparent transition-all duration-200 relative overflow-hidden h-full ${
+              className={`flex items-center rounded-xl bg-[var(--bg-subtle)] border border-transparent transition-all duration-200 relative overflow-hidden h-full ${
                   isEditMode 
-                    ? 'border-slate-200 pr-24 cursor-move flex-row p-3 gap-3 bg-white' 
-                    : 'hover:bg-white hover:border-blue-200 hover:shadow-md p-3 gap-3' 
+                    ? 'border-[var(--border-color)] pr-24 cursor-move flex-row p-3 gap-3 bg-[var(--bg-card)]' 
+                    : 'hover:bg-[var(--bg-card)] hover:border-blue-200 hover:shadow-md p-3 gap-3' 
               }`}
             >
               <img 
@@ -197,11 +193,11 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                 loading="lazy"
                 onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/20/20'; }}
               />
-              <span className="text-sm font-medium text-slate-700 truncate w-full text-left">
+              <span className="text-sm font-medium text-[var(--text-primary)] truncate w-full text-left">
                   {bookmark.title}
               </span>
               
-              {!isEditMode && <ExternalLink size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-auto" />}
+              {!isEditMode && <ExternalLink size={12} className="text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-auto" />}
             </a>
             
             {/* Edit Mode Controls for Bookmark */}
@@ -213,7 +209,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                         e.stopPropagation(); 
                         onEditBookmark(bookmark); 
                     }}
-                    className="p-1.5 bg-white shadow-sm border border-slate-200 rounded-md text-slate-500 hover:text-blue-600 hover:border-blue-300 transition shrink-0"
+                    className="p-1.5 bg-[var(--bg-card)] shadow-sm border border-[var(--border-color)] rounded-md text-[var(--text-secondary)] hover:text-blue-600 hover:border-blue-300 transition shrink-0"
                 >
                     <Edit2 size={14} />
                 </button>
@@ -221,10 +217,10 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                     <DeleteButton 
                         onDelete={() => onDeleteBookmark(bookmark.id)}
                         size={14}
-                        className="p-1.5 bg-white shadow-sm border border-slate-200 rounded-md text-slate-500 hover:text-red-600 hover:border-red-300 shrink-0"
+                        className="p-1.5 bg-[var(--bg-card)] shadow-sm border border-[var(--border-color)] rounded-md text-[var(--text-secondary)] hover:text-red-600 hover:border-red-300 shrink-0"
                     />
                 )}
-                <div className="p-1 text-slate-300 cursor-move">
+                <div className="p-1 text-[var(--text-secondary)] cursor-move">
                     <GripVertical size={14} />
                 </div>
               </div>
@@ -233,7 +229,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
         ))}
         
         {bookmarks.length === 0 && (
-            <div className={`text-sm text-slate-400 text-center py-8 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-100 rounded-xl ${!isEditMode ? 'col-span-full' : ''}`}>
+            <div className={`text-sm text-[var(--text-secondary)] text-center py-8 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[var(--border-color)] rounded-xl ${!isEditMode ? 'col-span-full' : ''}`}>
                 <span className="opacity-60">此分类下暂无书签</span>
                 {isAuthenticated && !isEditMode && (
                     <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded">
