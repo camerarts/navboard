@@ -77,19 +77,50 @@ const App: React.FC = () => {
       localStorage.setItem('flatnav_theme', theme);
   }, [theme]);
 
-  const handleLogin = (password: string): boolean => {
+  const handleLogin = (password: string): { success: boolean; message?: string } => {
+    const today = new Date().toLocaleDateString();
+    const lastAttemptDate = localStorage.getItem('flatnav_last_attempt_date');
+    let attempts = parseInt(localStorage.getItem('flatnav_login_attempts') || '0', 10);
+
+    // Check date and reset attempts if it's a new day
+    if (lastAttemptDate !== today) {
+        attempts = 0;
+        localStorage.setItem('flatnav_login_attempts', '0');
+        localStorage.setItem('flatnav_last_attempt_date', today);
+    }
+
+    // Check lock status (only if password already exists)
+    if (hasPassword && attempts >= 3) {
+        return { success: false, message: '安全警告：今日密码错误次数过多，系统已锁定。请明日再试。' };
+    }
+
     if (!hasPassword) {
+      // First time setup
       localStorage.setItem('flatnav_password', password);
       setHasPassword(true);
       setIsAuthenticated(true);
-      return true;
+      // Ensure clean slate
+      localStorage.setItem('flatnav_login_attempts', '0');
+      localStorage.setItem('flatnav_last_attempt_date', today);
+      return { success: true };
     } else {
       const stored = localStorage.getItem('flatnav_password');
       if (password === stored) {
         setIsAuthenticated(true);
-        return true;
+        // Reset attempts on success
+        localStorage.setItem('flatnav_login_attempts', '0');
+        return { success: true };
+      } else {
+        // Increment failed attempts
+        attempts += 1;
+        localStorage.setItem('flatnav_login_attempts', attempts.toString());
+        localStorage.setItem('flatnav_last_attempt_date', today);
+        
+        if (attempts >= 3) {
+             return { success: false, message: '安全警告：今日密码错误次数过多，系统已锁定。请明日再试。' };
+        }
+        return { success: false, message: `密码错误。今日剩余尝试次数：${3 - attempts}` };
       }
-      return false;
     }
   };
 
