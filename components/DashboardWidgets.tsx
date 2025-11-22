@@ -37,24 +37,24 @@ const CalendarCard: React.FC = () => {
   const [date, setDate] = useState(new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => setDate(new Date()), 60000); // Update every minute is enough for date
+    const timer = setInterval(() => setDate(new Date()), 1000); // Update every second for dynamic time
     return () => clearInterval(timer);
   }, []);
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl p-5 shadow-sm border border-[var(--border-color)] h-36 flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-shadow w-full">
-      <div className="flex flex-col items-center justify-center bg-red-500 text-white rounded-2xl w-20 h-24 shadow-red-200/50 shadow-lg shrink-0">
-        <span className="text-xs font-bold uppercase tracking-wider bg-red-600 w-full text-center py-1 rounded-t-2xl">
+    <div className="bg-[var(--bg-card)] rounded-2xl p-3 md:p-4 shadow-sm border border-[var(--border-color)] h-32 flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-shadow w-full">
+      <div className="flex flex-col items-center justify-center bg-red-500 text-white rounded-2xl w-12 h-16 md:w-16 md:h-20 shadow-red-200/50 shadow-lg shrink-0">
+        <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider bg-red-600 w-full text-center py-1 rounded-t-2xl">
           {date.getMonth() + 1}月
         </span>
-        <span className="text-4xl font-black tracking-tighter leading-none py-2">
+        <span className="text-xl md:text-2xl font-black tracking-tighter leading-none py-1 md:py-2">
           {date.getDate()}
         </span>
       </div>
-      <div className="flex-1 pl-5 flex flex-col justify-center min-w-0">
-        <h3 className="text-xl font-bold text-[var(--text-primary)] mb-1 truncate">{WEEKDAYS[date.getDay()]}</h3>
-        <p className="text-sm text-[var(--text-secondary)] font-medium truncate">{getLunarDate(date)}</p>
-        <p className="text-2xl font-mono text-[var(--text-primary)] mt-2 tracking-widest truncate opacity-80">
+      <div className="flex-1 pl-3 flex flex-col justify-center min-w-0">
+        <h3 className="text-sm md:text-base font-bold text-[var(--text-primary)] mb-0.5 truncate">{WEEKDAYS[date.getDay()]}</h3>
+        <p className="text-[10px] text-[var(--text-secondary)] font-medium truncate">{getLunarDate(date)}</p>
+        <p className="text-base md:text-lg font-mono text-[var(--text-primary)] mt-1 tracking-widest truncate opacity-90 font-semibold">
             {date.toLocaleTimeString('en-GB', { hour12: false })}
         </p>
       </div>
@@ -69,7 +69,7 @@ const WeatherCard: React.FC = () => {
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      setError('不支持地理位置');
+      setError('不支持定位');
       setLoading(false);
       return;
     }
@@ -92,7 +92,7 @@ const WeatherCard: React.FC = () => {
       },
       (err) => {
         console.error(err);
-        setError('无法获取位置');
+        setError('无法定位');
         setLoading(false);
       }
     );
@@ -100,7 +100,7 @@ const WeatherCard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl p-5 shadow-sm border border-[var(--border-color)] h-36 flex items-center justify-center w-full">
+      <div className="bg-[var(--bg-card)] rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex items-center justify-center w-full">
         <Loader2 className="animate-spin text-blue-500" />
       </div>
     );
@@ -108,12 +108,12 @@ const WeatherCard: React.FC = () => {
 
   if (error || !weather) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl p-5 shadow-sm border border-[var(--border-color)] h-36 flex flex-col items-center justify-center text-[var(--text-secondary)] gap-2 w-full">
-        <div className="flex items-center gap-2 text-lg font-bold text-[var(--text-primary)]">
-            获取失败
-            <AlertTriangle size={16} className="text-yellow-500" />
+      <div className="bg-[var(--bg-card)] rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex flex-col items-center justify-center text-[var(--text-secondary)] gap-2 w-full">
+        <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+            <AlertTriangle size={14} className="text-yellow-500" />
+            {error}
         </div>
-        <button onClick={() => window.location.reload()} className="text-xs text-blue-500 mt-1 hover:underline">点击重试</button>
+        <button onClick={() => window.location.reload()} className="text-xs text-blue-500 mt-1 hover:underline">刷新</button>
       </div>
     );
   }
@@ -122,34 +122,35 @@ const WeatherCard: React.FC = () => {
   const daily = weather.daily;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl p-4 shadow-sm border border-[var(--border-color)] h-36 flex hover:shadow-md transition-shadow overflow-hidden w-full">
+    <div className="bg-[var(--bg-card)] rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex hover:shadow-md transition-shadow overflow-hidden w-full relative">
       {/* Left: Current */}
-      <div className="w-1/3 flex flex-col justify-between border-r border-[var(--border-color)] pr-4 mr-4 shrink-0">
+      <div className="flex flex-col justify-between pr-3 mr-3 border-r border-[var(--border-color)] shrink-0 min-w-[70px] md:min-w-[80px]">
         <div>
-          <div className="flex items-center gap-1 text-[var(--text-secondary)] text-xs font-bold uppercase tracking-wider mb-1">
+          <div className="flex items-center gap-1 text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wider mb-0.5">
             <MapPin size={10} />
-            <span className="truncate max-w-full">{weather.locationName}</span>
+            <span className="truncate max-w-[70px]">{weather.locationName}</span>
           </div>
-          <div className="flex items-center gap-2">
-             {getWeatherIcon(current.weather_code, 32)}
-             <span className="text-2xl font-bold text-[var(--text-primary)]">{Math.round(current.temperature_2m)}°</span>
+          <div className="flex items-center gap-1">
+             {getWeatherIcon(current.weather_code, 24, "")}
+             <span className="text-xl font-bold text-[var(--text-primary)]">{Math.round(current.temperature_2m)}°</span>
           </div>
         </div>
-        <div className="text-[10px] text-[var(--text-secondary)]">
-            H:{Math.round(daily.temperature_2m_max[0])}° L:{Math.round(daily.temperature_2m_min[0])}°
+        <div className="text-[9px] text-[var(--text-secondary)] leading-tight">
+            <div>H: {Math.round(daily.temperature_2m_max[0])}°</div>
+            <div>L: {Math.round(daily.temperature_2m_min[0])}°</div>
         </div>
       </div>
 
-      {/* Right: Forecast */}
-      <div className="flex-1 flex justify-between items-center min-w-0">
-        {daily.time.slice(1, 6).map((dateStr: string, index: number) => {
+      {/* Right: Forecast (Compact) */}
+      <div className="flex-1 flex justify-between items-center min-w-0 gap-0.5 md:gap-1">
+        {daily.time.slice(1, 5).map((dateStr: string, index: number) => {
             const date = new Date(dateStr);
             const dayName = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
             return (
-                <div key={dateStr} className="flex flex-col items-center gap-1.5 flex-1 text-center">
-                    <span className="text-[10px] text-[var(--text-secondary)] font-medium">{dayName}</span>
-                    {getWeatherIcon(daily.weather_code[index + 1], 18)}
-                    <span className="text-[10px] font-bold text-[var(--text-primary)]">{Math.round(daily.temperature_2m_max[index + 1])}°</span>
+                <div key={dateStr} className="flex flex-col items-center gap-0.5 flex-1 text-center">
+                    <span className="text-[9px] text-[var(--text-secondary)] font-medium scale-90">{dayName}</span>
+                    {getWeatherIcon(daily.weather_code[index + 1], 14, "")}
+                    <span className="text-[9px] font-bold text-[var(--text-primary)]">{Math.round(daily.temperature_2m_max[index + 1])}°</span>
                 </div>
             );
         })}
@@ -162,11 +163,13 @@ const ClockCard: React.FC = () => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
-    const timer = requestAnimationFrame(function update() {
+    let frameId: number;
+    const update = () => {
       setTime(new Date());
-      requestAnimationFrame(update);
-    });
-    return () => cancelAnimationFrame(timer);
+      frameId = requestAnimationFrame(update);
+    };
+    frameId = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frameId);
   }, []);
 
   const seconds = time.getSeconds();
@@ -178,45 +181,71 @@ const ClockCard: React.FC = () => {
   const hourDeg = ((hours % 12 + minutes / 60) / 12) * 360;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl p-4 shadow-sm border border-[var(--border-color)] h-36 flex items-center justify-center hover:shadow-md transition-shadow relative w-full">
-        <div className="relative w-24 h-24 rounded-full border-4 border-[var(--border-color)] bg-[var(--bg-card)] shadow-inner flex items-center justify-center shrink-0">
-            {[...Array(12)].map((_, i) => (
-                <div 
-                    key={i} 
-                    className="absolute w-0.5 h-2 bg-[var(--text-secondary)] origin-bottom"
-                    style={{ 
-                        top: '4px', 
-                        left: 'calc(50% - 1px)', 
-                        transformOrigin: '50% 42px', 
-                        transform: `rotate(${i * 30}deg)` 
-                    }}
-                />
-            ))}
+    <div className="bg-[var(--bg-card)] rounded-2xl p-2 shadow-sm border border-[var(--border-color)] h-32 flex items-center justify-center hover:shadow-md transition-shadow relative w-full group overflow-hidden">
+        {/* Subtle decorative glow on hover */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-subtle)]/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"/>
+        
+        <div className="relative w-24 h-24 flex items-center justify-center">
+            {/* Clock Face Background */}
+            <div className="absolute inset-0 rounded-full bg-[var(--bg-subtle)]/20 border border-[var(--border-color)]/60" />
+
+            {/* Numbers 1-12 */}
+            {[...Array(12)].map((_, i) => {
+                const num = i + 1;
+                // -90 degrees because 0 is at 3 o'clock
+                const angleRad = (num * 30 - 90) * (Math.PI / 180);
+                const radius = 38; // Percentage for positioning
+                // Calculate position (50% is center)
+                const left = 50 + radius * Math.cos(angleRad);
+                const top = 50 + radius * Math.sin(angleRad);
+                
+                return (
+                    <span 
+                        key={num} 
+                        className="absolute text-[10px] font-semibold text-[var(--text-secondary)]/70 select-none"
+                        style={{ 
+                            left: `${left}%`, 
+                            top: `${top}%`, 
+                            transform: 'translate(-50%, -50%)'
+                        }}
+                    >
+                        {num}
+                    </span>
+                );
+            })}
+
+            {/* Center Dot */}
+            <div className="absolute w-1.5 h-1.5 bg-[var(--text-primary)] rounded-full z-30 shadow-sm ring-2 ring-[var(--bg-card)]" />
+
+            {/* Hour Hand */}
             <div 
-                className="absolute w-1.5 h-6 bg-[var(--text-primary)] rounded-full origin-bottom z-10"
+                className="absolute w-1.5 h-6 bg-[var(--text-primary)] rounded-full z-10 origin-bottom"
                 style={{ 
                     bottom: '50%', 
-                    left: 'calc(50% - 3px)',
-                    transform: `rotate(${hourDeg}deg)` 
+                    left: '50%', 
+                    transform: `translateX(-50%) rotate(${hourDeg}deg)` 
                 }} 
             />
+
+            {/* Minute Hand */}
             <div 
-                className="absolute w-1 h-9 bg-[var(--text-secondary)] rounded-full origin-bottom z-20"
+                className="absolute w-1 h-9 bg-[var(--text-secondary)] rounded-full z-20 origin-bottom opacity-80"
                 style={{ 
                     bottom: '50%', 
-                    left: 'calc(50% - 2px)',
-                    transform: `rotate(${minuteDeg}deg)` 
+                    left: '50%',
+                     transform: `translateX(-50%) rotate(${minuteDeg}deg)`
                 }} 
             />
+
+            {/* Second Hand */}
             <div 
-                className="absolute w-0.5 h-10 bg-red-500 rounded-full origin-bottom z-30"
+                className="absolute w-0.5 h-10 bg-blue-500 rounded-full z-20 origin-bottom"
                 style={{ 
                     bottom: '50%', 
-                    left: 'calc(50% - 1px)',
-                    transform: `rotate(${secondDeg}deg)` 
+                    left: '50%',
+                    transform: `translateX(-50%) rotate(${secondDeg}deg)`
                 }} 
             />
-            <div className="absolute w-3 h-3 bg-[var(--text-primary)] rounded-full z-40 border-2 border-[var(--bg-card)] shadow-sm" />
         </div>
     </div>
   );
@@ -241,35 +270,35 @@ const IPCard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl p-5 shadow-sm border border-[var(--border-color)] h-36 flex items-center justify-center w-full">
+      <div className="bg-[var(--bg-card)] rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex items-center justify-center w-full">
         <Loader2 className="animate-spin text-blue-500" />
       </div>
     );
   }
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl p-4 shadow-sm border border-[var(--border-color)] h-36 flex flex-col justify-center hover:shadow-md transition-shadow w-full">
+    <div className="bg-[var(--bg-card)] rounded-2xl p-3 md:p-5 shadow-sm border border-[var(--border-color)] h-32 flex flex-col justify-center hover:shadow-md transition-shadow w-full">
        {!ipData || !ipData.success ? (
            <div className="text-center">
-               <p className="text-[var(--text-secondary)] text-sm">获取失败</p>
+               <p className="text-[var(--text-secondary)] text-xs">获取失败</p>
                <button onClick={() => window.location.reload()} className="mt-2 text-blue-500"><RefreshCw size={16} /></button>
            </div>
        ) : (
-           <div className="space-y-3 w-full">
+           <div className="space-y-1 w-full">
                <div>
-                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-0.5">当前IP</span>
-                   <div className="text-lg font-bold text-[var(--text-primary)] font-mono tracking-tight truncate" title={ipData.ip}>{ipData.ip}</div>
-                   <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1 mt-0.5 truncate">
-                       <span className="w-2 h-2 rounded-full bg-green-500 shrink-0"></span>
-                       <span className="truncate">{ipData.city}, {ipData.country}</span>
+                   <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-0.5">Current IP</span>
+                   <div className="text-lg md:text-2xl font-bold text-[var(--text-primary)] font-mono tracking-tight truncate" title={ipData.ip}>
+                       {ipData.ip}
                    </div>
                </div>
                
-               <div className="pt-2 border-t border-[var(--border-color)]">
-                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-0.5">ISP/代理</span>
-                   <div className="text-sm font-medium text-[var(--text-primary)] font-mono truncate" title={ipData.connection?.org || ipData.connection?.isp}>
-                       {ipData.connection?.org || ipData.connection?.isp || 'Unknown'}
-                   </div>
+               <div className="flex items-center gap-2 text-[var(--text-secondary)] text-xs mt-1 pt-2 border-t border-[var(--border-color)]">
+                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 animate-pulse"></span>
+                   <span className="truncate font-medium">{ipData.city}, {ipData.country}</span>
+               </div>
+               
+               <div className="text-[9px] text-[var(--text-secondary)] font-mono truncate opacity-70">
+                   {ipData.connection?.org || ipData.connection?.isp || 'ISP Unknown'}
                </div>
            </div>
        )}
@@ -279,26 +308,26 @@ const IPCard: React.FC = () => {
 
 const DashboardWidgets: React.FC = () => {
   return (
-    <div className="flex flex-col md:flex-row md:flex-wrap xl:flex-nowrap gap-4 w-full mx-auto mb-8 relative z-20">
-      {/* Calendar: 27% */}
-      <div className="w-full md:w-[calc(50%-0.5rem)] xl:w-[27%] min-w-[260px]">
-        <CalendarCard />
-      </div>
-      
-      {/* Weather: 43% */}
-      <div className="w-full md:w-[calc(50%-0.5rem)] xl:w-[43%] min-w-[350px]">
-        <WeatherCard />
-      </div>
+    <div className="grid grid-cols-2 gap-3 w-full mx-auto mb-8 relative z-20 md:grid-cols-2 xl:flex xl:flex-nowrap xl:items-stretch xl:gap-4">
+        {/* Calendar */}
+        <div className="w-full xl:w-[20%] min-w-0">
+          <CalendarCard />
+        </div>
+        
+        {/* Weather */}
+        <div className="w-full xl:w-[35%] min-w-0">
+          <WeatherCard />
+        </div>
 
-      {/* Clock: 15% */}
-      <div className="w-full md:w-[calc(50%-0.5rem)] xl:w-[15%] min-w-[140px]">
-         <ClockCard />
-      </div>
+        {/* Clock */}
+        <div className="w-full xl:w-[15%] min-w-0">
+           <ClockCard />
+        </div>
 
-      {/* IP: 15% */}
-      <div className="w-full md:w-[calc(50%-0.5rem)] xl:w-[15%] min-w-[140px]">
-         <IPCard />
-      </div>
+        {/* IP */}
+        <div className="w-full xl:w-[30%] min-w-0">
+           <IPCard />
+        </div>
     </div>
   );
 };
