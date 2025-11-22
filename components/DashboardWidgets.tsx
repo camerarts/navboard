@@ -19,37 +19,35 @@ const getWeatherIcon = (code: number, size = 24, className = "") => {
 const getLunarDate = (date: Date) => {
   try {
     const formatter = new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {
-      month: 'long',
       day: 'numeric',
+      month: 'numeric'
     });
     const parts = formatter.formatToParts(date);
-    const monthPart = parts.find(p => p.type === 'month')?.value;
-    const dayPart = parts.find(p => p.type === 'day')?.value;
+    const m = parseInt(parts.find(p => p.type === 'month')?.value || '0');
+    const d = parseInt(parts.find(p => p.type === 'day')?.value || '0');
     
-    if (!monthPart || !dayPart) return formatter.format(date);
+    if (!m || !d) return '';
 
-    // Convert numeric day string to number
-    const dayNum = parseInt(dayPart, 10);
-    let chineseDay = dayPart;
-
-    if (!isNaN(dayNum)) {
-        const chars = ['十', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-        if (dayNum <= 10) {
-            chineseDay = '初' + (dayNum === 10 ? '十' : chars[dayNum]);
-        } else if (dayNum < 20) {
-            chineseDay = '十' + chars[dayNum % 10];
-        } else if (dayNum === 20) {
-            chineseDay = '二十';
-        } else if (dayNum < 30) {
-            chineseDay = '廿' + (dayNum === 20 ? '十' : chars[dayNum % 10]);
-        } else if (dayNum === 30) {
-            chineseDay = '三十';
-        }
-    }
-
-    return `${monthPart}${chineseDay}`;
+    const cnNums = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+    
+    let monthStr = '';
+    // Standard Chinese Month Naming
+    if (m === 1) monthStr = '正月';
+    else if (m <= 10) monthStr = cnNums[m] + '月';
+    else if (m === 11) monthStr = '十一月';
+    else if (m === 12) monthStr = '腊月';
+    else monthStr = m + '月';
+    
+    let dayStr = '';
+    if (d <= 10) dayStr = '初' + (d === 10 ? '十' : cnNums[d]);
+    else if (d < 20) dayStr = '十' + cnNums[d % 10];
+    else if (d === 20) dayStr = '二十';
+    else if (d < 30) dayStr = '廿' + cnNums[d % 10];
+    else if (d === 30) dayStr = '三十';
+    
+    return `${monthStr}${dayStr}`;
   } catch (e) {
-    return '农历数据不可用';
+    return '';
   }
 };
 
@@ -147,33 +145,33 @@ const WeatherCard: React.FC = () => {
 
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex hover:shadow-md transition-shadow overflow-hidden w-full relative">
-      {/* Left: Current */}
-      <div className="flex flex-col justify-between pr-3 mr-1 border-r border-[var(--border-color)] shrink-0 min-w-[75px]">
+      {/* Left: Current - Widened to fit location and display horizontally */}
+      <div className="flex flex-col justify-between pr-4 mr-1 border-r border-[var(--border-color)] shrink-0 min-w-[120px] max-w-[45%]">
         <div>
-          <div className="flex items-center gap-1 text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wider mb-1">
-            <MapPin size={10} />
-            <span className="truncate max-w-[55px]">{weather.locationName}</span>
+          <div className="flex items-center gap-1.5 text-[var(--text-secondary)] text-[11px] font-bold uppercase tracking-wider mb-1">
+            <MapPin size={12} className="shrink-0" />
+            <span className="truncate w-full font-medium" title={weather.locationName}>{weather.locationName}</span>
           </div>
-          <div className="flex items-center gap-1">
-             {getWeatherIcon(current.weather_code, 24, "")}
-             <span className="text-xl font-bold text-[var(--text-primary)]">{Math.round(current.temperature_2m)}°</span>
+          <div className="flex items-center gap-2 mt-0.5">
+             {getWeatherIcon(current.weather_code, 28, "")}
+             <span className="text-3xl font-bold text-[var(--text-primary)] tracking-tighter">{Math.round(current.temperature_2m)}°</span>
           </div>
         </div>
-        <div className="text-[9px] text-[var(--text-secondary)] font-medium">
-            <div>H: {Math.round(daily.temperature_2m_max[0])}°</div>
-            <div>L: {Math.round(daily.temperature_2m_min[0])}°</div>
+        <div className="flex items-center gap-3 text-[11px] text-[var(--text-secondary)] font-medium mt-auto">
+            <span className="whitespace-nowrap">H: {Math.round(daily.temperature_2m_max[0])}°</span>
+            <span className="whitespace-nowrap">L: {Math.round(daily.temperature_2m_min[0])}°</span>
         </div>
       </div>
 
-      {/* Right: Forecast (Compact 5 Days) */}
-      <div className="flex-1 flex justify-between items-center min-w-0 gap-1 pl-1">
+      {/* Right: Forecast (Compact 5 Days Grid) */}
+      <div className="flex-1 grid grid-cols-5 gap-0.5 pl-0.5 h-full">
         {daily.time.slice(1, 6).map((dateStr: string, index: number) => {
             const date = new Date(dateStr);
             const dayName = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()];
             return (
-                <div key={dateStr} className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full rounded-lg bg-[var(--bg-subtle)]/30 hover:bg-[var(--bg-subtle)] border border-transparent hover:border-[var(--border-color)] transition-all py-1">
+                <div key={dateStr} className="flex flex-col items-center justify-center gap-0.5 h-full rounded-lg hover:bg-[var(--bg-subtle)]/50 transition-colors">
                     <span className="text-[9px] font-bold text-[var(--text-secondary)] scale-90">{dayName}</span>
-                    {getWeatherIcon(daily.weather_code[index + 1], 18, "drop-shadow-sm my-0.5")}
+                    {getWeatherIcon(daily.weather_code[index + 1], 16, "drop-shadow-sm my-0.5")}
                     <span className="text-xs font-bold text-[var(--text-primary)]">{Math.round(daily.temperature_2m_max[index + 1])}°</span>
                 </div>
             );
