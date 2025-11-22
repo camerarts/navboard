@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, Search, ChevronRight } from 'lucide-react';
+import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -24,12 +24,20 @@ const App: React.FC = () => {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  
+  // Sidebar State - Default to true for desktop, will check on mount
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Drag State
   const [draggedCategoryIndex, setDraggedCategoryIndex] = useState<number | null>(null);
 
-  // Load from local storage on mount
+  // Initialize sidebar state and load data
   useEffect(() => {
+    // Handle responsive default state
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        setIsSidebarOpen(false);
+    }
+
     const storedBookmarks = localStorage.getItem('flatnav_bookmarks');
     const storedCategories = localStorage.getItem('flatnav_categories');
     const storedPassword = localStorage.getItem('flatnav_password'); 
@@ -215,117 +223,145 @@ const App: React.FC = () => {
     <div className="flex h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100 overflow-hidden">
       
       {/* Sidebar - Fixed Left */}
-      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm shrink-0 z-20 relative">
-          {/* Brand */}
-          <div className="h-24 flex items-center px-8">
-            <a 
-                href="/"
-                onClick={(e) => { e.preventDefault(); window.location.reload(); }}
-                className="group flex items-center gap-3 cursor-pointer select-none focus:outline-none w-full"
-            >
-                <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-900/20 group-hover:bg-blue-600 transition-all duration-500 ease-out">
-                    <Compass size={22} className="group-hover:rotate-45 transition-transform duration-500" />
-                </div>
-                <div className="flex flex-col justify-center">
-                    <span className="text-xl font-bold text-slate-800 tracking-tight leading-none group-hover:text-blue-600 transition-colors duration-300">
-                        FlatNav
-                    </span>
-                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest leading-none mt-1.5">
-                        Dashboard
-                    </span>
-                </div>
-            </a>
-          </div>
-
-          {/* Navigation List */}
-          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scrollbar-hide">
-             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 mb-2 mt-2">分类导航</div>
-             
-             {categories.map(category => {
-                 const Icon = CATEGORY_ICONS[category.name] || CATEGORY_ICONS['日常办公'];
-                 const isActive = activeCategoryId === category.id;
-                 return (
-                     <button
-                        key={category.id}
-                        onClick={() => scrollToCategory(category.id)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
-                            isActive 
-                            ? 'bg-blue-50 text-blue-700 shadow-sm' 
-                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                        }`}
-                     >
-                         <div className="flex items-center gap-3">
-                            <span className={`transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
-                                {Icon}
-                            </span>
-                            <span>{category.name}</span>
-                         </div>
-                         {isActive && <ChevronRight size={14} className="text-blue-400" />}
-                     </button>
-                 )
-             })}
-
-             {/* Add Category (Sidebar) */}
-             {isAuthenticated && (
-                 <button 
-                    onClick={openAddCategoryModal}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 border border-dashed border-slate-200 hover:border-blue-200 transition-all mt-4 group"
-                 >
-                    <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-                    <span>添加分类</span>
-                 </button>
-             )}
-          </div>
-
-          {/* Bottom Actions */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-              {/* Edit Mode Toggle */}
-              {isAuthenticated && (
-                <button 
-                    onClick={() => setIsEditMode(!isEditMode)}
-                    className={`w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        isEditMode 
-                        ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/10' 
-                        : 'bg-white text-slate-600 border border-slate-200 hover:border-blue-300 hover:text-blue-600'
-                    }`}
+      <aside 
+        className={`${
+            isSidebarOpen ? 'w-72 border-r opacity-100' : 'w-0 border-r-0 opacity-0'
+        } bg-white border-slate-200 flex flex-col shadow-sm shrink-0 z-20 relative transition-all duration-300 ease-in-out overflow-hidden`}
+      >
+          {/* Inner Container with Fixed Width to prevent content squash during transition */}
+          <div className="w-72 h-full flex flex-col">
+            {/* Brand */}
+            <div className="h-24 flex items-center px-8 shrink-0">
+                <a 
+                    href="/"
+                    onClick={(e) => { e.preventDefault(); window.location.reload(); }}
+                    className="group flex items-center gap-3 cursor-pointer select-none focus:outline-none w-full"
                 >
-                    {isEditMode ? <Check size={16} /> : <Settings size={16} />}
-                    <span>{isEditMode ? '完成编辑' : '布局设置'}</span>
-                </button>
-              )}
+                    <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-900/20 group-hover:bg-blue-600 transition-all duration-500 ease-out">
+                        <Compass size={22} className="group-hover:rotate-45 transition-transform duration-500" />
+                    </div>
+                    <div className="flex flex-col justify-center">
+                        <span className="text-xl font-bold text-slate-800 tracking-tight leading-none group-hover:text-blue-600 transition-colors duration-300">
+                            FlatNav
+                        </span>
+                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest leading-none mt-1.5">
+                            Dashboard
+                        </span>
+                    </div>
+                </a>
+            </div>
 
-              {/* User / Auth */}
-              {isAuthenticated ? (
-                  <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-100 shadow-sm">
-                      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                          <User size={18} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-slate-700 truncate">管理员</p>
-                          <p className="text-[10px] text-slate-400 truncate">已登录</p>
-                      </div>
-                      <button 
-                        onClick={handleLogout}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="退出登录"
-                      >
-                          <LogOut size={16} />
-                      </button>
-                  </div>
-              ) : (
-                  <button 
-                    onClick={() => setIsLoginModalOpen(true)}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all"
-                  >
-                      <User size={18} />
-                      <span>管理员登录</span>
-                  </button>
-              )}
+            {/* Navigation List */}
+            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scrollbar-hide">
+                
+                {/* Redesigned Category Header */}
+                <div className="px-4 mt-6 mb-4">
+                    <div className="flex items-center gap-3 group">
+                         <span className="text-[11px] font-black text-slate-300 uppercase tracking-[0.2em] group-hover:text-blue-400 transition-colors">
+                             分类导航
+                         </span>
+                         <div className="h-px bg-gradient-to-r from-slate-100 to-transparent flex-1"></div>
+                    </div>
+                </div>
+                
+                {categories.map(category => {
+                    const Icon = CATEGORY_ICONS[category.name] || CATEGORY_ICONS['日常办公'];
+                    const isActive = activeCategoryId === category.id;
+                    return (
+                        <button
+                            key={category.id}
+                            onClick={() => scrollToCategory(category.id)}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                                isActive 
+                                ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className={`transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                                    {Icon}
+                                </span>
+                                <span>{category.name}</span>
+                            </div>
+                            {isActive && <ChevronRight size={14} className="text-blue-400" />}
+                        </button>
+                    )
+                })}
+
+                {/* Add Category (Sidebar) */}
+                {isAuthenticated && (
+                    <button 
+                        onClick={openAddCategoryModal}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 border border-dashed border-slate-200 hover:border-blue-200 transition-all mt-4 group"
+                    >
+                        <Plus size={18} className="group-hover:rotate-90 transition-transform" />
+                        <span>添加分类</span>
+                    </button>
+                )}
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+                {/* Edit Mode Toggle */}
+                {isAuthenticated && (
+                    <button 
+                        onClick={() => setIsEditMode(!isEditMode)}
+                        className={`w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            isEditMode 
+                            ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/10' 
+                            : 'bg-white text-slate-600 border border-slate-200 hover:border-blue-300 hover:text-blue-600'
+                        }`}
+                    >
+                        {isEditMode ? <Check size={16} /> : <Settings size={16} />}
+                        <span>{isEditMode ? '完成编辑' : '布局设置'}</span>
+                    </button>
+                )}
+
+                {/* User / Auth */}
+                {isAuthenticated ? (
+                    <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-100 shadow-sm">
+                        <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                            <User size={18} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-700 truncate">管理员</p>
+                            <p className="text-[10px] text-slate-400 truncate">已登录</p>
+                        </div>
+                        <button 
+                            onClick={handleLogout}
+                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="退出登录"
+                        >
+                            <LogOut size={16} />
+                        </button>
+                    </div>
+                ) : (
+                    <button 
+                        onClick={() => setIsLoginModalOpen(true)}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all"
+                    >
+                        <User size={18} />
+                        <span>管理员登录</span>
+                    </button>
+                )}
+            </div>
           </div>
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 h-full overflow-y-auto scroll-smooth relative">
+        
+        {/* Sidebar Toggle Button */}
+        <div className={`absolute top-8 z-40 transition-all duration-300 ${isSidebarOpen ? '-left-3' : 'left-6'}`}>
+             <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="bg-white border border-slate-200 p-1.5 rounded-full shadow-sm text-slate-400 hover:text-blue-600 hover:shadow-md transition-all flex items-center justify-center"
+                title={isSidebarOpen ? "收起侧边栏" : "展开侧边栏"}
+             >
+                {isSidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+             </button>
+         </div>
+
         <div className="max-w-5xl mx-auto px-8 py-10 pb-32">
             
             {/* Search Area */}
