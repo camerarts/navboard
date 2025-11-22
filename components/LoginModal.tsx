@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { X, Lock, Key } from 'lucide-react';
+import { X, Lock, Key, AlertCircle } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (password: string) => boolean;
+  onLogin: (password: string) => { success: boolean; message?: string };
   isFirstTime: boolean;
 }
 
@@ -30,15 +30,18 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin, isFir
       }
     }
 
-    const success = onLogin(password);
-    if (success) {
+    const result = onLogin(password);
+    if (result.success) {
       setPassword('');
       setConfirmPassword('');
+      setError('');
       onClose();
     } else {
-      setError('密码错误');
+      setError(result.message || '密码错误');
     }
   };
+
+  const isLocked = error.includes('锁定') || error.includes('禁止');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
@@ -66,7 +69,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin, isFir
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+              disabled={isLocked}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:bg-slate-100 disabled:text-slate-400"
               placeholder={isFirstTime ? "输入新密码" : "输入管理员密码"}
               autoFocus
             />
@@ -85,13 +89,23 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin, isFir
             </div>
           )}
 
-          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+          {error && (
+            <div className={`flex items-start gap-2 text-sm p-3 rounded-lg ${isLocked ? 'bg-red-100 text-red-700' : 'bg-red-50 text-red-600'}`}>
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <span className="font-medium">{error}</span>
+            </div>
+          )}
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-3 font-medium transition shadow-md active:transform active:scale-95"
+            disabled={isLocked}
+            className={`w-full text-white rounded-lg px-4 py-3 font-medium transition shadow-md active:transform active:scale-95 ${
+                isLocked
+                ? 'bg-slate-400 cursor-not-allowed hover:bg-slate-400'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
           >
-            {isFirstTime ? '设置并登录' : '登录'}
+            {isLocked ? '已锁定' : (isFirstTime ? '设置并登录' : '登录')}
           </button>
         </form>
       </div>
