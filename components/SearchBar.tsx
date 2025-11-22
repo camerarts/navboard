@@ -25,12 +25,12 @@ const SearchBar: React.FC<SearchBarProps> = () => {
         {/* Glow Effect */}
         <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-200 to-purple-200 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
         
-        <form onSubmit={handleSearch} className="relative flex items-center bg-white rounded-2xl shadow-xl shadow-slate-200/50 ring-1 ring-slate-100 p-2 transition-all duration-300">
+        <form onSubmit={handleSearch} className="relative flex items-center bg-[var(--bg-card)] rounded-2xl shadow-xl shadow-[var(--shadow-color)] ring-1 ring-[var(--border-color)] p-2 transition-all duration-300">
           
           {/* Left: Search Engine Selector */}
-          <div className="flex items-center pl-3 pr-2 border-r border-slate-100 min-w-[110px]">
+          <div className="flex items-center pl-3 pr-2 border-r border-[var(--border-color)] min-w-[110px]">
             <select 
-                className="bg-transparent text-sm font-semibold text-slate-600 focus:outline-none cursor-pointer py-2 w-full"
+                className="bg-transparent text-sm font-semibold text-[var(--text-secondary)] focus:outline-none cursor-pointer py-2 w-full"
                 value={selectedEngine.id}
                 onChange={(e) => setSelectedEngine(SEARCH_ENGINES.find(eng => eng.id === e.target.value) || SEARCH_ENGINES[0])}
             >
@@ -46,7 +46,7 @@ const SearchBar: React.FC<SearchBarProps> = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="输入关键词搜索..."
-            className="flex-1 bg-transparent border-none focus:ring-0 text-lg text-slate-800 placeholder-slate-400 px-4 py-3 w-full focus:outline-none"
+            className="flex-1 bg-transparent border-none focus:ring-0 text-lg text-[var(--text-primary)] placeholder-[var(--text-secondary)] px-4 py-3 w-full focus:outline-none"
             autoFocus
           />
           
@@ -58,7 +58,7 @@ const SearchBar: React.FC<SearchBarProps> = () => {
                 className={`p-3 rounded-xl transition-all duration-200 ${
                 query.trim() 
                     ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700'
-                    : 'bg-slate-100 text-slate-300'
+                    : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)]'
                 }`}
             >
                 <ArrowRight size={20} />
