@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Settings, LayoutGrid, User, LogOut, FolderPlus, Check, Compass } from 'lucide-react';
+import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, Search, ChevronRight } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
 import CategoryModal from './components/CategoryModal';
 import LoginModal from './components/LoginModal';
 import { Bookmark, Category } from './types';
-import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES } from './constants';
+import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES, CATEGORY_ICONS } from './constants';
 
 const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
@@ -19,6 +19,7 @@ const App: React.FC = () => {
 
   // UI State
   const [isEditMode, setIsEditMode] = useState(false);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [isBookmarkModalOpen, setIsBookmarkModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
@@ -31,10 +32,16 @@ const App: React.FC = () => {
   useEffect(() => {
     const storedBookmarks = localStorage.getItem('flatnav_bookmarks');
     const storedCategories = localStorage.getItem('flatnav_categories');
-    const storedPassword = localStorage.getItem('flatnav_password'); // Note: In a real app, use secure backend/hash
+    const storedPassword = localStorage.getItem('flatnav_password'); 
     
     if (storedBookmarks) setBookmarks(JSON.parse(storedBookmarks));
-    if (storedCategories) setCategories(JSON.parse(storedCategories));
+    if (storedCategories) {
+        const parsedCats = JSON.parse(storedCategories);
+        setCategories(parsedCats);
+        if (parsedCats.length > 0) setActiveCategoryId(parsedCats[0].id);
+    } else {
+        if (INITIAL_CATEGORIES.length > 0) setActiveCategoryId(INITIAL_CATEGORIES[0].id);
+    }
     
     if (storedPassword) {
       setHasPassword(true);
@@ -49,13 +56,11 @@ const App: React.FC = () => {
 
   const handleLogin = (password: string): boolean => {
     if (!hasPassword) {
-      // First time setup
       localStorage.setItem('flatnav_password', password);
       setHasPassword(true);
       setIsAuthenticated(true);
       return true;
     } else {
-      // Verify password
       const stored = localStorage.getItem('flatnav_password');
       if (password === stored) {
         setIsAuthenticated(true);
@@ -67,15 +72,13 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    setIsEditMode(false); // Automatically exit edit mode
+    setIsEditMode(false); 
   };
 
   const handleSaveBookmark = (newBookmarkData: Omit<Bookmark, 'id'>) => {
     if (editingBookmark) {
-        // Update existing
         setBookmarks(prev => prev.map(b => b.id === editingBookmark.id ? { ...b, ...newBookmarkData } : b));
     } else {
-        // Create new
         const newBookmark: Bookmark = {
             ...newBookmarkData,
             id: Date.now().toString(),
@@ -91,13 +94,10 @@ const App: React.FC = () => {
 
   const handleSaveCategory = (categoryData: { id?: string; name: string; color: string }) => {
       if (categoryData.id) {
-          // Update existing by ID (from Manager) or editingCategory state
           setCategories(prev => prev.map(c => c.id === categoryData.id ? { ...c, name: categoryData.name, color: categoryData.color } : c));
       } else if (editingCategory) {
-          // Fallback if ID not passed but state exists
           setCategories(prev => prev.map(c => c.id === editingCategory.id ? { ...c, ...categoryData, id: c.id } : c));
       } else {
-          // Create new
           const newCategory: Category = {
               id: Date.now().toString(),
               name: categoryData.name,
@@ -109,10 +109,18 @@ const App: React.FC = () => {
   };
 
   const handleDeleteCategory = (id: string) => {
-      // Remove category
       setCategories(prev => prev.filter(c => c.id !== id));
-      // Remove bookmarks associated with that category to prevent orphans
       setBookmarks(prev => prev.filter(b => b.categoryId !== id));
+  };
+
+  // --- Navigation & Scrolling ---
+
+  const scrollToCategory = (categoryId: string) => {
+      setActiveCategoryId(categoryId);
+      const element = document.getElementById(`category-${categoryId}`);
+      if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
   };
 
   // --- Drag and Drop Handlers ---
@@ -125,7 +133,7 @@ const App: React.FC = () => {
   };
 
   const handleCategoryDragOver = (e: React.DragEvent) => {
-      e.preventDefault(); // Allow drop
+      e.preventDefault(); 
       e.dataTransfer.dropEffect = 'move';
   };
 
@@ -133,7 +141,6 @@ const App: React.FC = () => {
       e.preventDefault();
       if (!isEditMode) return;
 
-      // Handle Category Reordering
       if (e.dataTransfer.getData('type') === 'category' && draggedCategoryIndex !== null) {
           if (draggedCategoryIndex !== dropIndex) {
               const newCategories = [...categories];
@@ -155,16 +162,12 @@ const App: React.FC = () => {
       const draggedItem = newBookmarks[draggedIndex];
       const targetItem = newBookmarks[targetIndex];
 
-      // If moving between categories, adopt the target's category
       if (draggedItem.categoryId !== targetItem.categoryId) {
           draggedItem.categoryId = targetItem.categoryId;
       }
 
-      // Move item
       newBookmarks.splice(draggedIndex, 1);
-      // Re-find target index as removal might have shifted it
       const newTargetIndex = newBookmarks.findIndex(b => b.id === targetId);
-      // Insert before target
       newBookmarks.splice(newTargetIndex, 0, draggedItem);
 
       setBookmarks(newBookmarks);
@@ -178,7 +181,6 @@ const App: React.FC = () => {
       
       const draggedItem = newBookmarks[draggedIndex];
       
-      // Only move if category is different or just to append to end
       if (draggedItem.categoryId !== categoryId) {
           draggedItem.categoryId = categoryId;
           newBookmarks.splice(draggedIndex, 1);
@@ -200,7 +202,7 @@ const App: React.FC = () => {
   };
 
   const openAddCategoryModal = () => {
-      setEditingCategory(null); // Null means "Add Mode"
+      setEditingCategory(null);
       setIsCategoryModalOpen(true);
   };
 
@@ -210,131 +212,188 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100 flex flex-col">
+    <div className="flex h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100 overflow-hidden">
       
-      {/* Background Decoration */}
-      <div className="fixed top-0 left-0 w-full h-96 bg-gradient-to-b from-blue-50/40 to-transparent -z-10 pointer-events-none"></div>
-
-      {/* Top Navigation Bar */}
-      <nav className="sticky top-0 z-40 w-full backdrop-blur-md bg-white/50 border-b border-slate-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            
-            {/* Brand */}
-            <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-                    <Compass size={20} />
+      {/* Sidebar - Fixed Left */}
+      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm shrink-0 z-20 relative">
+          {/* Brand */}
+          <div className="h-24 flex items-center px-8">
+            <a 
+                href="/"
+                onClick={(e) => { e.preventDefault(); window.location.reload(); }}
+                className="group flex items-center gap-3 cursor-pointer select-none focus:outline-none w-full"
+            >
+                <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-900/20 group-hover:bg-blue-600 transition-all duration-500 ease-out">
+                    <Compass size={22} className="group-hover:rotate-45 transition-transform duration-500" />
                 </div>
-                <span className="text-xl font-bold text-slate-800 tracking-tight">FlatNav</span>
-            </div>
+                <div className="flex flex-col justify-center">
+                    <span className="text-xl font-bold text-slate-800 tracking-tight leading-none group-hover:text-blue-600 transition-colors duration-300">
+                        FlatNav
+                    </span>
+                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest leading-none mt-1.5">
+                        Dashboard
+                    </span>
+                </div>
+            </a>
+          </div>
 
-            {/* Right Controls */}
-            <div className="flex items-center gap-3">
-                {isAuthenticated && (
-                    <button 
-                        onClick={() => setIsEditMode(!isEditMode)}
-                        className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
-                            isEditMode 
-                                ? 'bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200' 
-                                : 'bg-white/80 text-slate-600 border border-slate-200 hover:bg-slate-100'
+          {/* Navigation List */}
+          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scrollbar-hide">
+             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-4 mb-2 mt-2">分类导航</div>
+             
+             {categories.map(category => {
+                 const Icon = CATEGORY_ICONS[category.name] || CATEGORY_ICONS['日常办公'];
+                 const isActive = activeCategoryId === category.id;
+                 return (
+                     <button
+                        key={category.id}
+                        onClick={() => scrollToCategory(category.id)}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                            isActive 
+                            ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                         }`}
-                    >
-                        {isEditMode ? <Check size={14} /> : <Settings size={14} />}
-                        {isEditMode ? '完成修改' : '布局设置'}
-                    </button>
-                )}
+                     >
+                         <div className="flex items-center gap-3">
+                            <span className={`transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                                {Icon}
+                            </span>
+                            <span>{category.name}</span>
+                         </div>
+                         {isActive && <ChevronRight size={14} className="text-blue-400" />}
+                     </button>
+                 )
+             })}
 
-                {/* Auth Button */}
-                {isAuthenticated ? (
-                  <button 
-                    onClick={handleLogout}
-                    className="flex items-center justify-center w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-red-500 hover:bg-red-50 hover:border-red-100 transition-colors shadow-sm"
-                    title="退出登录"
-                  >
-                    <LogOut size={16} />
-                  </button>
-                ) : (
+             {/* Add Category (Sidebar) */}
+             {isAuthenticated && (
+                 <button 
+                    onClick={openAddCategoryModal}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 border border-dashed border-slate-200 hover:border-blue-200 transition-all mt-4 group"
+                 >
+                    <Plus size={18} className="group-hover:rotate-90 transition-transform" />
+                    <span>添加分类</span>
+                 </button>
+             )}
+          </div>
+
+          {/* Bottom Actions */}
+          <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+              {/* Edit Mode Toggle */}
+              {isAuthenticated && (
+                <button 
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isEditMode 
+                        ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/10' 
+                        : 'bg-white text-slate-600 border border-slate-200 hover:border-blue-300 hover:text-blue-600'
+                    }`}
+                >
+                    {isEditMode ? <Check size={16} /> : <Settings size={16} />}
+                    <span>{isEditMode ? '完成编辑' : '布局设置'}</span>
+                </button>
+              )}
+
+              {/* User / Auth */}
+              {isAuthenticated ? (
+                  <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-100 shadow-sm">
+                      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                          <User size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-slate-700 truncate">管理员</p>
+                          <p className="text-[10px] text-slate-400 truncate">已登录</p>
+                      </div>
+                      <button 
+                        onClick={handleLogout}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="退出登录"
+                      >
+                          <LogOut size={16} />
+                      </button>
+                  </div>
+              ) : (
                   <button 
                     onClick={() => setIsLoginModalOpen(true)}
-                    className="flex items-center justify-center w-9 h-9 rounded-full bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors shadow-sm"
-                    title={hasPassword ? '管理员登录' : '设置密码'}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all"
                   >
-                    <User size={16} />
+                      <User size={18} />
+                      <span>管理员登录</span>
                   </button>
-                )}
-            </div>
-        </div>
-      </nav>
+              )}
+          </div>
+      </aside>
 
-      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        
-        {/* Search Area - Centered and Prominent */}
-        <div className="mt-4 mb-12">
-            <SearchBar />
-        </div>
-
-        {/* Content Grid Header */}
-        <div className="flex justify-between items-end mb-6 px-1">
-            <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
-                <LayoutGrid size={20} className="text-blue-500" />
-                我的导航
-            </h2>
+      {/* Main Content Area */}
+      <main className="flex-1 h-full overflow-y-auto scroll-smooth relative">
+        <div className="max-w-5xl mx-auto px-8 py-10 pb-32">
             
-            {/* Action Buttons - Only visible if authenticated */}
+            {/* Search Area */}
+            <div className="mb-10 sticky top-4 z-30">
+                <SearchBar />
+            </div>
+
+            {/* Header Actions (Add Bookmark) */}
             {isAuthenticated && (
-                <div className="flex gap-2">
-                    <button 
-                        onClick={openAddCategoryModal}
-                        className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-full transition-colors shadow-sm"
-                    >
-                        <FolderPlus size={14} />
-                        分类
-                    </button>
-                    <button 
+                <div className="flex justify-end mb-6">
+                     <button 
                         onClick={openAddBookmarkModal}
-                        className="flex items-center gap-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-full transition-colors shadow-md"
+                        className="flex items-center gap-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
                     >
-                        <Plus size={14} />
-                        书签
+                        <Plus size={16} strokeWidth={3} />
+                        添加书签
                     </button>
                 </div>
             )}
-        </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-12">
-            {categories.map((category, index) => (
-                <div
-                    key={category.id}
-                    draggable={isEditMode}
-                    onDragStart={(e) => handleCategoryDragStart(e, index)}
-                    onDragOver={handleCategoryDragOver}
-                    onDrop={(e) => handleCategoryDrop(e, index)}
-                    className={`rounded-2xl transition-all duration-200 ${
-                        isEditMode ? 'cursor-move ring-2 ring-blue-100 hover:ring-blue-300 scale-[0.98] opacity-90' : ''
-                    }`}
-                >
-                    <CategoryGroup 
-                        category={category} 
-                        bookmarks={bookmarks.filter(b => b.categoryId === category.id)}
-                        onEditBookmark={openEditBookmarkModal}
-                        onDeleteBookmark={handleDeleteBookmark}
-                        onEditCategory={openEditCategoryModal}
-                        onDeleteCategory={handleDeleteCategory}
-                        isEditMode={isEditMode}
-                        isAuthenticated={isAuthenticated}
-                        onMoveBookmark={handleMoveBookmark}
-                        onMoveToCategory={handleMoveBookmarkToCategory}
-                    />
-                </div>
-            ))}
+            {/* Category List - Vertical Stack */}
+            <div className="flex flex-col gap-8">
+                {categories.map((category, index) => (
+                    <div
+                        key={category.id}
+                        id={`category-${category.id}`} // ID for scrolling
+                        draggable={isEditMode}
+                        onDragStart={(e) => handleCategoryDragStart(e, index)}
+                        onDragOver={handleCategoryDragOver}
+                        onDrop={(e) => handleCategoryDrop(e, index)}
+                        className={`transition-all duration-300 w-full scroll-mt-24 ${
+                            isEditMode ? 'cursor-move ring-2 ring-blue-100 hover:ring-blue-300 rounded-2xl opacity-90' : ''
+                        }`}
+                    >
+                        <CategoryGroup 
+                            category={category} 
+                            bookmarks={bookmarks.filter(b => b.categoryId === category.id)}
+                            onEditBookmark={openEditBookmarkModal}
+                            onDeleteBookmark={handleDeleteBookmark}
+                            onEditCategory={openEditCategoryModal}
+                            onDeleteCategory={handleDeleteCategory}
+                            isEditMode={isEditMode}
+                            isAuthenticated={isAuthenticated}
+                            onMoveBookmark={handleMoveBookmark}
+                            onMoveToCategory={handleMoveBookmarkToCategory}
+                        />
+                    </div>
+                ))}
+
+                {/* Empty State if no categories */}
+                {categories.length === 0 && (
+                    <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-3xl">
+                        <FolderPlus size={48} className="mx-auto text-slate-300 mb-4" />
+                        <h3 className="text-slate-500 font-medium">暂无分类</h3>
+                        {isAuthenticated && (
+                            <p className="text-slate-400 text-sm mt-2">点击左侧边栏“添加分类”开始使用</p>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <footer className="mt-20 pt-8 border-t border-slate-200 text-center">
+                <p className="text-slate-400 text-xs font-medium tracking-wide">&copy; {new Date().getFullYear()} FlatNav Dashboard.</p>
+            </footer>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="py-6 text-center border-t border-slate-200/50 bg-white/30 backdrop-blur-sm">
-        <p className="text-slate-400 text-xs">&copy; {new Date().getFullYear()} FlatNav. Designed for simplicity.</p>
-      </footer>
-
+      {/* Modals */}
       <BookmarkModal 
         isOpen={isBookmarkModalOpen} 
         onClose={() => setIsBookmarkModalOpen(false)} 
