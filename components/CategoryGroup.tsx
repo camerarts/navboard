@@ -110,12 +110,12 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
 
   return (
     <div 
-        className={`bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm border border-[var(--border-color)] hover:shadow-md transition-shadow duration-300 relative h-full w-full ${bookmarks.length === 0 ? 'border-dashed bg-[var(--bg-main)]/50' : ''}`}
+        className={`bg-[var(--bg-card)] rounded-2xl p-4 shadow-sm border border-[var(--border-color)] hover:shadow-md transition-shadow duration-300 relative h-full w-full ${bookmarks.length === 0 ? 'border-dashed bg-[var(--bg-main)]/50' : ''}`}
         onDragOver={(e) => { e.preventDefault(); }} 
         onDrop={handleContainerDrop}
     >
       {/* Category Header */}
-      <div className="flex items-center gap-3 mb-5 pb-3 border-b border-[var(--border-color)]">
+      <div className="flex items-center gap-3 mb-3 pb-2 border-b border-[var(--border-color)]">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm ${category.color}`}>
           {Icon}
         </div>
@@ -156,7 +156,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
       </div>
 
       {/* Bookmarks Grid */}
-      <div className={`grid gap-3 min-h-[40px] max-h-[280px] overflow-y-auto pr-2 ${
+      <div className={`grid gap-2 min-h-[40px] max-h-[280px] overflow-y-auto pr-2 ${
           !isEditMode 
             ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' 
             : 'grid-cols-1'
@@ -182,8 +182,8 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
               }}
               className={`flex items-center rounded-xl bg-[var(--bg-subtle)] border border-transparent transition-all duration-200 relative overflow-hidden h-full ${
                   isEditMode 
-                    ? 'border-[var(--border-color)] pr-24 cursor-move flex-row p-3 gap-3 bg-[var(--bg-card)]' 
-                    : 'hover:bg-[var(--bg-card)] hover:border-blue-200 hover:shadow-md p-3 gap-3' 
+                    ? 'border-[var(--border-color)] pr-24 cursor-move flex-row p-2 gap-2 bg-[var(--bg-card)]' 
+                    : 'hover:bg-[var(--bg-card)] hover:border-blue-200 hover:shadow-md p-2 gap-2' 
               }`}
             >
               <img 
