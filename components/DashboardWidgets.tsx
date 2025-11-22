@@ -18,12 +18,36 @@ const getWeatherIcon = (code: number, size = 24, className = "") => {
 // Calendar Helpers
 const getLunarDate = (date: Date) => {
   try {
-    // Use Intl to get the Chinese calendar date string
-    const lunarString = new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {
+    const formatter = new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {
       month: 'long',
       day: 'numeric',
-    }).format(date);
-    return `农历 ${lunarString}`;
+    });
+    const parts = formatter.formatToParts(date);
+    const monthPart = parts.find(p => p.type === 'month')?.value;
+    const dayPart = parts.find(p => p.type === 'day')?.value;
+    
+    if (!monthPart || !dayPart) return formatter.format(date);
+
+    // Convert numeric day string to number
+    const dayNum = parseInt(dayPart, 10);
+    let chineseDay = dayPart;
+
+    if (!isNaN(dayNum)) {
+        const chars = ['十', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+        if (dayNum <= 10) {
+            chineseDay = '初' + (dayNum === 10 ? '十' : chars[dayNum]);
+        } else if (dayNum < 20) {
+            chineseDay = '十' + chars[dayNum % 10];
+        } else if (dayNum === 20) {
+            chineseDay = '二十';
+        } else if (dayNum < 30) {
+            chineseDay = '廿' + (dayNum === 20 ? '十' : chars[dayNum % 10]);
+        } else if (dayNum === 30) {
+            chineseDay = '三十';
+        }
+    }
+
+    return `${monthPart}${chineseDay}`;
   } catch (e) {
     return '农历数据不可用';
   }
@@ -124,33 +148,33 @@ const WeatherCard: React.FC = () => {
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex hover:shadow-md transition-shadow overflow-hidden w-full relative">
       {/* Left: Current */}
-      <div className="flex flex-col justify-between pr-3 mr-3 border-r border-[var(--border-color)] shrink-0 min-w-[70px] md:min-w-[80px]">
+      <div className="flex flex-col justify-between pr-3 mr-1 border-r border-[var(--border-color)] shrink-0 min-w-[75px]">
         <div>
-          <div className="flex items-center gap-1 text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wider mb-0.5">
+          <div className="flex items-center gap-1 text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wider mb-1">
             <MapPin size={10} />
-            <span className="truncate max-w-[70px]">{weather.locationName}</span>
+            <span className="truncate max-w-[55px]">{weather.locationName}</span>
           </div>
           <div className="flex items-center gap-1">
              {getWeatherIcon(current.weather_code, 24, "")}
              <span className="text-xl font-bold text-[var(--text-primary)]">{Math.round(current.temperature_2m)}°</span>
           </div>
         </div>
-        <div className="text-[9px] text-[var(--text-secondary)] leading-tight">
+        <div className="text-[9px] text-[var(--text-secondary)] font-medium">
             <div>H: {Math.round(daily.temperature_2m_max[0])}°</div>
             <div>L: {Math.round(daily.temperature_2m_min[0])}°</div>
         </div>
       </div>
 
-      {/* Right: Forecast (Compact) */}
-      <div className="flex-1 flex justify-between items-center min-w-0 gap-0.5 md:gap-1">
-        {daily.time.slice(1, 5).map((dateStr: string, index: number) => {
+      {/* Right: Forecast (Compact 5 Days) */}
+      <div className="flex-1 flex justify-between items-center min-w-0 gap-1 pl-1">
+        {daily.time.slice(1, 6).map((dateStr: string, index: number) => {
             const date = new Date(dateStr);
-            const dayName = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
+            const dayName = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()];
             return (
-                <div key={dateStr} className="flex flex-col items-center gap-0.5 flex-1 text-center">
-                    <span className="text-[9px] text-[var(--text-secondary)] font-medium scale-90">{dayName}</span>
-                    {getWeatherIcon(daily.weather_code[index + 1], 14, "")}
-                    <span className="text-[9px] font-bold text-[var(--text-primary)]">{Math.round(daily.temperature_2m_max[index + 1])}°</span>
+                <div key={dateStr} className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full rounded-lg bg-[var(--bg-subtle)]/30 hover:bg-[var(--bg-subtle)] border border-transparent hover:border-[var(--border-color)] transition-all py-1">
+                    <span className="text-[9px] font-bold text-[var(--text-secondary)] scale-90">{dayName}</span>
+                    {getWeatherIcon(daily.weather_code[index + 1], 18, "drop-shadow-sm my-0.5")}
+                    <span className="text-xs font-bold text-[var(--text-primary)]">{Math.round(daily.temperature_2m_max[index + 1])}°</span>
                 </div>
             );
         })}
