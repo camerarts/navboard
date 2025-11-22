@@ -468,8 +468,8 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {/* Category List - Vertical Stack */}
-            <div className="flex flex-col gap-8">
+            {/* Category List - Vertical Stack - TIGHTENED GAP */}
+            <div className="flex flex-col gap-4">
                 {categories.map((category, index) => (
                     <div
                         key={category.id}
