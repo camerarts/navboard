@@ -122,7 +122,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
         <h2 className="text-lg font-bold text-[var(--text-primary)]">{category.name}</h2>
         
         {/* Edit/Delete Category Controls */}
-        {isEditMode ? (
+        {isEditMode && (
             <div className="ml-auto flex items-center gap-2">
                 {onEditCategory && (
                     <button
@@ -148,10 +148,6 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                     <GripVertical size={16} />
                 </div>
             </div>
-        ) : (
-            <span className="ml-auto text-xs font-bold text-[var(--text-secondary)] bg-[var(--bg-subtle)] px-2.5 py-1 rounded-full">
-              {bookmarks.length}
-            </span>
         )}
       </div>
 
