@@ -145,12 +145,13 @@ const WeatherCard: React.FC = () => {
 
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex hover:shadow-md transition-shadow overflow-hidden w-full relative">
-      {/* Left: Current - Widened to fit location and display horizontally */}
-      <div className="flex flex-col justify-between pr-4 mr-1 border-r border-[var(--border-color)] shrink-0 min-w-[120px] max-w-[45%]">
+      {/* Left: Current Weather */}
+      {/* Mobile: Full width (forecast hidden). Desktop: Sized to content with min-width, border right. */}
+      <div className="flex flex-col justify-between md:pr-4 md:mr-1 md:border-r border-[var(--border-color)] shrink-0 w-full md:w-auto md:min-w-[160px] md:max-w-[50%]">
         <div>
           <div className="flex items-center gap-1.5 text-[var(--text-secondary)] text-[11px] font-bold uppercase tracking-wider mb-1">
             <MapPin size={12} className="shrink-0" />
-            <span className="truncate w-full font-medium" title={weather.locationName}>{weather.locationName}</span>
+            <span className="truncate w-full font-medium block" title={weather.locationName}>{weather.locationName}</span>
           </div>
           <div className="flex items-center gap-2 mt-0.5">
              {getWeatherIcon(current.weather_code, 28, "")}
@@ -163,8 +164,8 @@ const WeatherCard: React.FC = () => {
         </div>
       </div>
 
-      {/* Right: Forecast (Compact 5 Days Grid) */}
-      <div className="flex-1 grid grid-cols-5 gap-0.5 pl-0.5 h-full">
+      {/* Right: Forecast (Hidden on Mobile to prevent garbled layout) */}
+      <div className="hidden md:grid flex-1 grid-cols-5 gap-0.5 pl-0.5 h-full">
         {daily.time.slice(1, 6).map((dateStr: string, index: number) => {
             const date = new Date(dateStr);
             const dayName = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()];
