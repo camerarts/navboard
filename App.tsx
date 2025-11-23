@@ -524,7 +524,7 @@ const App: React.FC = () => {
       <main className="flex-1 h-full overflow-y-auto scroll-smooth relative z-0">
         
         {/* Sidebar Toggle Button - Visible on Desktop when open, Visible on Mobile when closed */}
-        <div className={`absolute top-8 z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${isSidebarOpen ? 'md:-left-3 -left-20' : 'left-4 md:left-6'}`}>
+        <div className={`sticky top-8 z-40 h-0 overflow-visible transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${isSidebarOpen ? 'md:-left-3 -left-20' : 'left-4 md:left-6'}`}>
              <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="bg-[var(--bg-card)] backdrop-blur-md border border-[var(--border-color)] p-2 rounded-full shadow-sm text-[var(--text-secondary)] hover:text-[var(--accent-color)] hover:shadow-md transition-all flex items-center justify-center hover:scale-110"
