@@ -110,13 +110,13 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
 
   return (
     <div 
-        className={`bg-[var(--bg-card)] rounded-2xl p-4 shadow-sm border border-[var(--border-color)] hover:shadow-md transition-shadow duration-300 relative h-full w-full ${bookmarks.length === 0 ? 'border-dashed bg-[var(--bg-main)]/50' : ''}`}
+        className={`bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-5 shadow-sm border border-[var(--border-color)] hover:shadow-xl hover:scale-[1.01] transition-all duration-500 ease-out relative h-full w-full ${bookmarks.length === 0 ? 'border-dashed bg-[var(--bg-main)]/50' : ''}`}
         onDragOver={(e) => { e.preventDefault(); }} 
         onDrop={handleContainerDrop}
     >
       {/* Category Header */}
-      <div className="flex items-center gap-3 mb-3 pb-2 border-b border-[var(--border-color)]">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm ${category.color}`}>
+      <div className="flex items-center gap-3 mb-4 pb-2 border-b border-[var(--border-color)]">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-md ${category.color} transform transition-transform group-hover:scale-110 duration-500`}>
           {Icon}
         </div>
         <h2 className="text-lg font-bold text-[var(--text-primary)]">{category.name}</h2>
@@ -156,7 +156,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
       </div>
 
       {/* Bookmarks Grid */}
-      <div className={`grid gap-2 min-h-[40px] max-h-[280px] overflow-y-auto pr-2 ${
+      <div className={`grid gap-3 min-h-[40px] max-h-[320px] overflow-y-auto pr-2 custom-scrollbar ${
           !isEditMode 
             ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' 
             : 'grid-cols-1'
@@ -164,7 +164,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
         {bookmarks.map((bookmark) => (
           <div 
             key={bookmark.id} 
-            className="relative group"
+            className="relative group perspective-1000"
             draggable={isEditMode}
             onDragStart={(e) => handleBookmarkDragStart(e, bookmark.id)}
             onDragOver={(e) => e.preventDefault()}
@@ -180,24 +180,27 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                      e.stopPropagation();
                  }
               }}
-              className={`flex items-center rounded-xl bg-[var(--bg-subtle)] border border-transparent transition-all duration-200 relative overflow-hidden h-full ${
+              className={`flex items-center rounded-xl bg-[var(--bg-subtle)] border border-transparent transition-all duration-300 ease-out relative overflow-hidden h-full ${
                   isEditMode 
-                    ? 'border-[var(--border-color)] pr-24 cursor-move flex-row p-2 gap-2 bg-[var(--bg-card)]' 
-                    : 'hover:bg-[var(--bg-card)] hover:border-blue-200 hover:shadow-md p-2 gap-2' 
+                    ? 'border-[var(--border-color)] pr-24 cursor-move flex-row p-3 gap-3 bg-[var(--bg-card)]' 
+                    : 'hover:bg-[var(--bg-card)] hover:border-blue-200 hover:shadow-lg hover:scale-105 hover:-translate-y-0.5 p-3 gap-2.5' 
               }`}
             >
-              <img 
-                src={`https://www.google.com/s2/favicons?domain=${bookmark.url}&sz=32`} 
-                alt="" 
-                className="w-5 h-5 rounded-sm shrink-0 opacity-90"
-                loading="lazy"
-                onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/20/20'; }}
-              />
+              <div className="relative shrink-0">
+                <img 
+                    src={`https://www.google.com/s2/favicons?domain=${bookmark.url}&sz=32`} 
+                    alt="" 
+                    className="w-6 h-6 rounded-md object-cover shadow-sm group-hover:shadow-md transition-shadow"
+                    loading="lazy"
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/20/20'; }}
+                />
+              </div>
+              
               <span className="text-sm font-medium text-[var(--text-primary)] truncate w-full text-left">
                   {bookmark.title}
               </span>
               
-              {!isEditMode && <ExternalLink size={12} className="text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-auto" />}
+              {!isEditMode && <ExternalLink size={12} className="text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-all duration-300 shrink-0 ml-auto -translate-x-2 group-hover:translate-x-0" />}
             </a>
             
             {/* Edit Mode Controls for Bookmark */}
@@ -229,7 +232,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
         ))}
         
         {bookmarks.length === 0 && (
-            <div className={`text-sm text-[var(--text-secondary)] text-center py-8 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[var(--border-color)] rounded-xl ${!isEditMode ? 'col-span-full' : ''}`}>
+            <div className={`text-sm text-[var(--text-secondary)] text-center py-8 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[var(--border-color)] rounded-xl bg-[var(--bg-subtle)]/30 ${!isEditMode ? 'col-span-full' : ''}`}>
                 <span className="opacity-60">此分类下暂无书签</span>
                 {isAuthenticated && !isEditMode && (
                     <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded">
