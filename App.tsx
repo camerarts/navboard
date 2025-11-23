@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X } from 'lucide-react';
+import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2 } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
 import CategoryModal from './components/CategoryModal';
 import LoginModal from './components/LoginModal';
+import SiteConfigModal from './components/SiteConfigModal';
 import DashboardWidgets from './components/DashboardWidgets';
 import { Bookmark, Category } from './types';
 import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES, CATEGORY_ICONS } from './constants';
@@ -25,6 +26,7 @@ const App: React.FC = () => {
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [isBookmarkModalOpen, setIsBookmarkModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isSiteConfigModalOpen, setIsSiteConfigModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   
@@ -37,6 +39,11 @@ const App: React.FC = () => {
   // Drag State
   const [draggedCategoryIndex, setDraggedCategoryIndex] = useState<number | null>(null);
 
+  // App Config State
+  const [appName, setAppName] = useState('FlatNav');
+  const [appFontSize, setAppFontSize] = useState('text-xl');
+  const [appSubtitle, setAppSubtitle] = useState('Dashboard');
+
   // Initialize state and load data
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -47,6 +54,9 @@ const App: React.FC = () => {
     const storedCategories = localStorage.getItem('flatnav_categories');
     const storedPassword = localStorage.getItem('flatnav_password'); 
     const storedTheme = localStorage.getItem('flatnav_theme') as ThemeType;
+    const storedAppName = localStorage.getItem('flatnav_app_name');
+    const storedAppFontSize = localStorage.getItem('flatnav_app_font_size');
+    const storedAppSubtitle = localStorage.getItem('flatnav_app_subtitle');
 
     if (storedBookmarks) setBookmarks(JSON.parse(storedBookmarks));
     if (storedCategories) {
@@ -64,6 +74,10 @@ const App: React.FC = () => {
     if (storedTheme) {
         setTheme(storedTheme);
     }
+
+    if (storedAppName) setAppName(storedAppName);
+    if (storedAppFontSize) setAppFontSize(storedAppFontSize);
+    if (storedAppSubtitle) setAppSubtitle(storedAppSubtitle);
   }, []);
 
   // Persist changes
@@ -165,6 +179,15 @@ const App: React.FC = () => {
   const handleDeleteCategory = (id: string) => {
       setCategories(prev => prev.filter(c => c.id !== id));
       setBookmarks(prev => prev.filter(b => b.categoryId !== id));
+  };
+
+  const handleSaveSiteConfig = (name: string, fontSize: string, subtitle: string) => {
+      setAppName(name);
+      setAppFontSize(fontSize);
+      setAppSubtitle(subtitle);
+      localStorage.setItem('flatnav_app_name', name);
+      localStorage.setItem('flatnav_app_font_size', fontSize);
+      localStorage.setItem('flatnav_app_subtitle', subtitle);
   };
 
   // --- Navigation & Scrolling ---
@@ -334,7 +357,7 @@ const App: React.FC = () => {
           {/* Inner Container */}
           <div className="w-full h-full flex flex-col">
             {/* Brand & Mobile Close */}
-            <div className="h-24 flex items-center justify-between px-6 shrink-0">
+            <div className="h-24 flex items-center justify-between px-6 shrink-0 relative">
                 <a 
                     href="/"
                     onClick={(e) => { e.preventDefault(); window.location.reload(); }}
@@ -344,11 +367,22 @@ const App: React.FC = () => {
                         <Compass size={22} className="group-hover:rotate-45 transition-transform duration-500" />
                     </div>
                     <div className="flex flex-col justify-center">
-                        <span className="text-xl font-bold text-[var(--text-primary)] tracking-tight leading-none group-hover:text-blue-600 transition-colors duration-300">
-                            FlatNav
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className={`${appFontSize} font-bold text-[var(--text-primary)] tracking-tight leading-none group-hover:text-blue-600 transition-all duration-300`}>
+                                {appName}
+                            </span>
+                            {isAuthenticated && (
+                                <button 
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsSiteConfigModalOpen(true); }}
+                                    className="text-[var(--text-secondary)] hover:text-blue-500 opacity-40 hover:opacity-100 p-1 rounded-md hover:bg-[var(--bg-subtle)] transition-all"
+                                    title="修改标题"
+                                >
+                                    <Edit2 size={12} />
+                                </button>
+                            )}
+                        </div>
                         <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-widest leading-none mt-1.5">
-                            Dashboard
+                            {appSubtitle}
                         </span>
                     </div>
                 </a>
@@ -565,7 +599,7 @@ const App: React.FC = () => {
             </div>
 
             <footer className="mt-20 pt-8 border-t border-[var(--border-color)] text-center">
-                <p className="text-[var(--text-secondary)] text-xs font-medium tracking-wide">&copy; {new Date().getFullYear()} FlatNav Dashboard.</p>
+                <p className="text-[var(--text-secondary)] text-xs font-medium tracking-wide">&copy; {new Date().getFullYear()} {appName} Dashboard.</p>
             </footer>
         </div>
       </main>
@@ -593,6 +627,15 @@ const App: React.FC = () => {
         onClose={() => setIsLoginModalOpen(false)}
         onLogin={handleLogin}
         isFirstTime={!hasPassword}
+      />
+      
+      <SiteConfigModal
+        isOpen={isSiteConfigModalOpen}
+        onClose={() => setIsSiteConfigModalOpen(false)}
+        onSave={handleSaveSiteConfig}
+        initialName={appName}
+        initialFontSize={appFontSize}
+        initialSubtitle={appSubtitle}
       />
     </div>
   );
