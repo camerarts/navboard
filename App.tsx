@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap } from 'lucide-react';
+import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -91,7 +91,7 @@ const App: React.FC = () => {
 
     // Check lock status (only if password already exists)
     if (hasPassword && attempts >= 3) {
-        return { success: false, message: '安全警告：今日密码错误次数过多，系统已锁定。请明日再试。' };
+        return { success: false, message: '安全警告：今日密码错误次数过多，本设备已禁止登录。请明日再试。' };
     }
 
     if (!hasPassword) {
@@ -117,7 +117,7 @@ const App: React.FC = () => {
         localStorage.setItem('flatnav_last_attempt_date', today);
         
         if (attempts >= 3) {
-             return { success: false, message: '安全警告：今日密码错误次数过多，系统已锁定。请明日再试。' };
+             return { success: false, message: '安全警告：今日密码错误次数过多，本设备已禁止登录。请明日再试。' };
         }
         return { success: false, message: `密码错误。今日剩余尝试次数：${3 - attempts}` };
       }
@@ -174,6 +174,10 @@ const App: React.FC = () => {
       const element = document.getElementById(`category-${categoryId}`);
       if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      // On mobile, close sidebar after clicking
+      if (window.innerWidth < 768) {
+          setIsSidebarOpen(false);
       }
   };
 
@@ -269,60 +273,74 @@ const App: React.FC = () => {
     <div className="flex h-screen bg-[var(--bg-main)] text-[var(--text-primary)] font-sans selection:bg-[var(--accent-bg)] overflow-hidden transition-colors duration-300" data-theme={theme}>
       <style>{`
         :root {
-            --bg-main: #f8fafc;
-            --bg-card: #ffffff;
-            --bg-subtle: #f1f5f9;
+            --bg-main: #f0f4f8;
+            --bg-card: rgba(255, 255, 255, 0.75);
+            --bg-subtle: rgba(241, 245, 249, 0.6);
             --text-primary: #1e293b;
             --text-secondary: #64748b;
-            --border-color: #e2e8f0;
+            --border-color: rgba(226, 232, 240, 0.6);
             --accent-color: #2563eb;
-            --accent-bg: #eff6ff;
-            --shadow-color: rgba(148, 163, 184, 0.1);
-            --hover-bg: #f8fafc;
+            --accent-bg: rgba(37, 99, 235, 0.1);
+            --shadow-color: rgba(148, 163, 184, 0.15);
+            --hover-bg: rgba(248, 250, 252, 0.8);
+            --backdrop-blur: 20px;
         }
         [data-theme='dark'] {
             --bg-main: #0f172a;
-            --bg-card: #1e293b;
-            --bg-subtle: #334155;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --bg-subtle: rgba(51, 65, 85, 0.5);
             --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
-            --border-color: #334155;
+            --border-color: rgba(51, 65, 85, 0.6);
             --accent-color: #60a5fa;
-            --accent-bg: rgba(59, 130, 246, 0.1);
-            --shadow-color: rgba(0, 0, 0, 0.3);
-            --hover-bg: #334155;
+            --accent-bg: rgba(59, 130, 246, 0.15);
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --hover-bg: rgba(51, 65, 85, 0.6);
         }
         [data-theme='cyberpunk'] {
             --bg-main: #050505;
-            --bg-card: #121212;
-            --bg-subtle: #1a1a1a;
+            --bg-card: rgba(18, 18, 18, 0.8);
+            --bg-subtle: rgba(26, 26, 26, 0.7);
             --text-primary: #00ff9d;
             --text-secondary: #d946ef;
-            --border-color: #00ff9d;
+            --border-color: rgba(0, 255, 157, 0.3);
             --accent-color: #00ff9d;
             --accent-bg: rgba(0, 255, 157, 0.1);
-            --shadow-color: rgba(0, 255, 157, 0.25);
-            --hover-bg: #1a1a1a;
+            --shadow-color: rgba(0, 255, 157, 0.2);
+            --hover-bg: rgba(26, 26, 26, 0.8);
             font-family: 'Courier New', monospace;
         }
       `}</style>
 
-      {/* Sidebar - Fixed Left */}
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div 
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
+            onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
       <aside 
-        className={`${
-            isSidebarOpen ? 'w-72 border-r opacity-100' : 'w-0 border-r-0 opacity-0'
-        } bg-[var(--bg-card)] border-[var(--border-color)] flex flex-col shadow-sm shrink-0 z-20 relative transition-all duration-300 ease-in-out overflow-hidden`}
+        className={`
+            fixed inset-y-0 left-0 z-50 h-full
+            bg-[var(--bg-card)] border-r border-[var(--border-color)] backdrop-blur-xl
+            flex flex-col shadow-2xl md:shadow-sm shrink-0
+            transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] overflow-hidden
+            ${isSidebarOpen ? 'translate-x-0 w-64 md:w-72 opacity-100' : '-translate-x-full w-64 md:w-0 md:translate-x-0 md:opacity-0 md:border-r-0'}
+            md:relative md:translate-x-0
+        `}
       >
-          {/* Inner Container with Fixed Width to prevent content squash during transition */}
-          <div className="w-72 h-full flex flex-col">
-            {/* Brand */}
-            <div className="h-24 flex items-center px-8 shrink-0">
+          {/* Inner Container */}
+          <div className="w-full h-full flex flex-col">
+            {/* Brand & Mobile Close */}
+            <div className="h-24 flex items-center justify-between px-6 shrink-0">
                 <a 
                     href="/"
                     onClick={(e) => { e.preventDefault(); window.location.reload(); }}
-                    className="group flex items-center gap-3 cursor-pointer select-none focus:outline-none w-full"
+                    className="group flex items-center gap-3 cursor-pointer select-none focus:outline-none"
                 >
-                    <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-900/20 group-hover:bg-blue-600 transition-all duration-500 ease-out">
+                    <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-900/20 group-hover:bg-blue-600 transition-all duration-500 ease-out group-hover:scale-110">
                         <Compass size={22} className="group-hover:rotate-45 transition-transform duration-500" />
                     </div>
                     <div className="flex flex-col justify-center">
@@ -334,12 +352,18 @@ const App: React.FC = () => {
                         </span>
                     </div>
                 </a>
+                {/* Mobile Close Button */}
+                <button 
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="md:hidden p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                    <X size={20} />
+                </button>
             </div>
 
             {/* Navigation List */}
             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scrollbar-hide">
                 
-                {/* Redesigned Category Header */}
                 <div className="px-4 mt-6 mb-4">
                     <div className="flex items-center gap-3 group">
                          <span className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] group-hover:text-[var(--accent-color)] transition-colors">
@@ -356,14 +380,14 @@ const App: React.FC = () => {
                         <button
                             key={category.id}
                             onClick={() => scrollToCategory(category.id)}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden ${
                                 isActive 
-                                ? 'bg-[var(--accent-bg)] text-[var(--accent-color)] shadow-sm' 
-                                : 'text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)]'
+                                ? 'bg-[var(--accent-bg)] text-[var(--accent-color)] shadow-sm scale-[1.02]' 
+                                : 'text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] hover:scale-[1.02]'
                             }`}
                         >
-                            <div className="flex items-center gap-3">
-                                <span className={`transition-colors ${isActive ? 'text-[var(--accent-color)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}>
+                            <div className="flex items-center gap-3 relative z-10">
+                                <span className={`transition-colors duration-300 ${isActive ? 'text-[var(--accent-color)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] group-hover:scale-110 transform'}`}>
                                     {Icon}
                                 </span>
                                 <span>{category.name}</span>
@@ -377,7 +401,7 @@ const App: React.FC = () => {
                 {isAuthenticated && (
                     <button 
                         onClick={openAddCategoryModal}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--accent-color)] hover:bg-[var(--accent-bg)] border border-dashed border-[var(--border-color)] hover:border-[var(--accent-color)] transition-all mt-4 group"
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--accent-color)] hover:bg-[var(--accent-bg)] border border-dashed border-[var(--border-color)] hover:border-[var(--accent-color)] transition-all mt-4 group hover:scale-[1.02]"
                     >
                         <Plus size={18} className="group-hover:rotate-90 transition-transform" />
                         <span>添加分类</span>
@@ -386,13 +410,13 @@ const App: React.FC = () => {
             </div>
 
             {/* Bottom Actions */}
-            <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-subtle)]/30 shrink-0 space-y-3">
+            <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-subtle)]/50 shrink-0 space-y-3 backdrop-blur-sm">
                 
                 {/* Theme Switcher */}
-                <div className="grid grid-cols-3 gap-2 p-1 bg-[var(--bg-main)] rounded-xl border border-[var(--border-color)]">
+                <div className="grid grid-cols-3 gap-2 p-1 bg-[var(--bg-main)]/80 rounded-xl border border-[var(--border-color)]">
                     <button 
                         onClick={() => setTheme('light')}
-                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${theme === 'light' ? 'bg-[var(--bg-card)] shadow-sm text-blue-600' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all hover:scale-105 ${theme === 'light' ? 'bg-[var(--bg-card)] shadow-sm text-blue-600' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                         title="简约白"
                     >
                         <Sun size={16} />
@@ -400,7 +424,7 @@ const App: React.FC = () => {
                     </button>
                     <button 
                         onClick={() => setTheme('dark')}
-                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-[var(--bg-card)] shadow-sm text-blue-400' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all hover:scale-105 ${theme === 'dark' ? 'bg-[var(--bg-card)] shadow-sm text-blue-400' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                         title="简约黑"
                     >
                         <Moon size={16} />
@@ -408,7 +432,7 @@ const App: React.FC = () => {
                     </button>
                     <button 
                         onClick={() => setTheme('cyberpunk')}
-                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${theme === 'cyberpunk' ? 'bg-[var(--bg-card)] shadow-sm text-[#00ff9d]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all hover:scale-105 ${theme === 'cyberpunk' ? 'bg-[var(--bg-card)] shadow-sm text-[#00ff9d]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                         title="赛博朋克"
                     >
                         <Zap size={16} />
@@ -420,7 +444,7 @@ const App: React.FC = () => {
                 {isAuthenticated && (
                     <button 
                         onClick={() => setIsEditMode(!isEditMode)}
-                        className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-[1.02] ${
                             isEditMode 
                             ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/10' 
                             : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-color)] hover:text-[var(--accent-color)]'
@@ -433,7 +457,7 @@ const App: React.FC = () => {
 
                 {/* User / Auth */}
                 {isAuthenticated ? (
-                    <div className="flex items-center gap-3 p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
+                    <div className="flex items-center gap-3 p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm hover:shadow-md transition-shadow">
                         <div className="w-9 h-9 rounded-full bg-[var(--accent-bg)] text-[var(--accent-color)] flex items-center justify-center">
                             <User size={18} />
                         </div>
@@ -443,7 +467,7 @@ const App: React.FC = () => {
                         </div>
                         <button 
                             onClick={handleLogout}
-                            className="p-1.5 text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-1.5 text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors hover:scale-110"
                             title="退出登录"
                         >
                             <LogOut size={16} />
@@ -452,7 +476,7 @@ const App: React.FC = () => {
                 ) : (
                     <button 
                         onClick={() => setIsLoginModalOpen(true)}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all"
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all hover:scale-[1.02]"
                     >
                         <User size={18} />
                         <span>管理员登录</span>
@@ -463,16 +487,16 @@ const App: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 h-full overflow-y-auto scroll-smooth relative">
+      <main className="flex-1 h-full overflow-y-auto scroll-smooth relative z-0">
         
-        {/* Sidebar Toggle Button */}
-        <div className={`absolute top-8 z-40 transition-all duration-300 ${isSidebarOpen ? '-left-3' : 'left-6'}`}>
+        {/* Sidebar Toggle Button - Visible on Desktop when open, Visible on Mobile when closed */}
+        <div className={`absolute top-8 z-40 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${isSidebarOpen ? 'md:-left-3 -left-20' : 'left-4 md:left-6'}`}>
              <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="bg-[var(--bg-card)] border border-[var(--border-color)] p-1.5 rounded-full shadow-sm text-[var(--text-secondary)] hover:text-[var(--accent-color)] hover:shadow-md transition-all flex items-center justify-center"
+                className="bg-[var(--bg-card)] backdrop-blur-md border border-[var(--border-color)] p-2 rounded-full shadow-sm text-[var(--text-secondary)] hover:text-[var(--accent-color)] hover:shadow-md transition-all flex items-center justify-center hover:scale-110"
                 title={isSidebarOpen ? "收起侧边栏" : "展开侧边栏"}
              >
-                {isSidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                {isSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
              </button>
          </div>
 
@@ -491,7 +515,7 @@ const App: React.FC = () => {
                 <div className="flex justify-end mb-6">
                      <button 
                         onClick={openAddBookmarkModal}
-                        className="flex items-center gap-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                        className="flex items-center gap-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:scale-105"
                     >
                         <Plus size={16} strokeWidth={3} />
                         添加书签
@@ -499,8 +523,8 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {/* Category List - Vertical Stack - TIGHTENED GAP */}
-            <div className="flex flex-col gap-4">
+            {/* Category List - Vertical Stack */}
+            <div className="flex flex-col gap-6">
                 {categories.map((category, index) => (
                     <div
                         key={category.id}
@@ -509,7 +533,7 @@ const App: React.FC = () => {
                         onDragStart={(e) => handleCategoryDragStart(e, index)}
                         onDragOver={handleCategoryDragOver}
                         onDrop={(e) => handleCategoryDrop(e, index)}
-                        className={`transition-all duration-300 w-full scroll-mt-24 ${
+                        className={`transition-all duration-500 ease-out w-full scroll-mt-24 ${
                             isEditMode ? 'cursor-move ring-2 ring-blue-100 hover:ring-blue-300 rounded-2xl opacity-90' : ''
                         }`}
                     >
@@ -530,7 +554,7 @@ const App: React.FC = () => {
 
                 {/* Empty State if no categories */}
                 {categories.length === 0 && (
-                    <div className="text-center py-20 border-2 border-dashed border-[var(--border-color)] rounded-3xl">
+                    <div className="text-center py-20 border-2 border-dashed border-[var(--border-color)] rounded-3xl bg-[var(--bg-card)]/50 backdrop-blur-sm">
                         <FolderPlus size={48} className="mx-auto text-[var(--text-secondary)] mb-4" />
                         <h3 className="text-[var(--text-secondary)] font-medium">暂无分类</h3>
                         {isAuthenticated && (
