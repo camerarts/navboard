@@ -3,13 +3,14 @@ import { Category, Bookmark, SearchEngine } from './types';
 import { Search, Globe, Code, Coffee, Briefcase, ShoppingCart } from 'lucide-react';
 
 // --- 安全配置 ---
-// ⚠️ 重要提示：如果 GitHub 曾向您发送泄漏警告，之前的 Token 已被自动作废。
-// 请务必生成一个新的 Token (权限勾选 'gist')。
+// ⚠️ 常见问题：如果遇到【同步出错】或【Token 无效】，通常是因为 Token 被 GitHub 自动作废了。
+// GitHub 的安全扫描器会检测代码库中的明文 Token 并立即使其失效。
 
-// 配置步骤：
-// 1. 获取新 Token (例如: ghp_abc123...)
-// 2. 在浏览器控制台输入: btoa('ghp_abc123...')
-// 3. 将输出的字符串 (例如: Z2hwX2FiYzEyMy4uLg==) 填入下方引号中
+// ✅ 修复步骤：
+// 1. 去 GitHub 生成新 Token (Settings -> Developer settings -> Personal access tokens -> Tokens (classic) -> Generate new token -> 勾选 'gist')。
+// 2. 拿到以 ghp_ 开头的 Token 后，不要直接填在这里！
+// 3. 在浏览器控制台输入: btoa('您的ghp_开头的Token')
+// 4. 将输出的 Base64 字符串 (例如 Z2hwXy4uLg==) 填入下方引号中。
 export const GITHUB_TOKEN_ENCODED = 'Z2hwX0xsNWJRTFByZExWWXFjSlBvcUZtWHpDbUlNaXVhNjE2b0I5Yw=='; 
 
 export const INITIAL_CATEGORIES: Category[] = [
