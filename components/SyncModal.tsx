@@ -1,250 +1,44 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Github, UploadCloud, DownloadCloud, AlertCircle, Check, Loader2, RefreshCw, Clock, Key, ExternalLink, HelpCircle, WifiOff } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Github, UploadCloud, DownloadCloud, AlertCircle, Check, Loader2, Key, ExternalLink, RefreshCw, Zap, WifiOff } from 'lucide-react';
+import { SyncStatus } from '../hooks/useGitHubSync';
 
 interface SyncModalProps {
   isOpen: boolean;
   onClose: () => void;
-  getData: () => any;
-  onDataSync: (data: any) => void;
+  token: string;
+  setToken: (t: string) => void;
+  autoSync: boolean;
+  setAutoSync: (b: boolean) => void;
+  status: SyncStatus;
+  lastSuccessTime: string;
+  onUpload: () => void;
+  onDownload: () => void;
 }
 
-const GIST_FILENAME = 'flatnav_backup.json';
-
-const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataSync }) => {
-  const [token, setToken] = useState('');
-  const [gistId, setGistId] = useState('');
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  const [status, setStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', msg: string }>({ type: 'idle', msg: '' });
-  const [isChecking, setIsChecking] = useState(false);
-  const [needsTokenConfig, setNeedsTokenConfig] = useState(false);
-
-  // Helper to clean token
-  const cleanToken = (t: string) => t.trim().replace(/^Bearer\s+/i, '').replace(/[\r\n\s]/g, '');
-
-  const handleError = (err: any) => {
-      console.error(err);
-      let msg = err.message || '未知错误';
-      let isAuthError = false;
-      
-      if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('Network request failed')) {
-          msg = '网络连接失败 (Failed to fetch)。请检查网络连接是否正常，或尝试使用 VPN 访问 GitHub API。';
-      } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('bad credentials')) {
-          msg = 'Token 无效或过期 (401)。请重新配置 Token。';
-          isAuthError = true;
-      } else if (msg.includes('403')) {
-          msg = '访问被拒绝 (403)。Token 权限不足或 API 限流。';
-      } else if (msg.includes('404')) {
-          msg = '未找到资源 (404)。';
-      }
-
-      setStatus({ type: 'error', msg });
-      setIsChecking(false);
-
-      if (isAuthError) {
-          setNeedsTokenConfig(true);
-      }
-  };
-
-  // useCallback for checkForBackup to be stable for useEffect
-  const checkForBackup = useCallback(async (authToken: string) => {
-    if (!authToken) return;
-    
-    setIsChecking(true);
-    setStatus({ type: 'loading', msg: '正在连接 GitHub...' });
-    
-    try {
-      const res = await fetch('https://api.github.com/gists', {
-        headers: { 
-            'Authorization': `Bearer ${authToken}`,
-            'Accept': 'application/vnd.github.v3+json'
-        },
-        credentials: 'omit'
-      });
-
-      if (!res.ok) {
-        throw new Error(`GitHub API Error: ${res.status}`);
-      }
-
-      const gists = await res.json();
-      
-      // Ensure gists is an array
-      if (!Array.isArray(gists)) {
-          throw new Error('Invalid response format from GitHub');
-      }
-
-      const backupGist = gists.find((g: any) => g.files && g.files[GIST_FILENAME]);
-      
-      if (backupGist) {
-        setGistId(backupGist.id);
-        const updateTime = new Date(backupGist.updated_at).toLocaleString();
-        setLastUpdated(updateTime);
-        setStatus({ type: 'success', msg: `已关联云端备份` });
-        localStorage.setItem('flatnav_gist_id', backupGist.id);
-      } else {
-        setGistId(''); 
-        setLastUpdated(null);
-        setStatus({ type: 'idle', msg: '未找到现有备份，上传后将自动创建。' });
-      }
-    } catch (err: any) {
-      handleError(err);
-    } finally {
-      setIsChecking(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isOpen) {
-      let storedToken = localStorage.getItem('flatnav_github_token') || '';
-      // Sanitize stored token to prevent errors from legacy dirty tokens
-      storedToken = cleanToken(storedToken);
-
-      const storedGistId = localStorage.getItem('flatnav_gist_id') || '';
-      
-      setToken(storedToken);
-      setGistId(storedGistId);
-      setStatus({ type: 'idle', msg: '' });
-      
-      if (storedToken) {
-        checkForBackup(storedToken);
-        setNeedsTokenConfig(false);
-      } else {
-        setNeedsTokenConfig(true);
-      }
-    }
-  }, [isOpen, checkForBackup]);
-
-  const saveToken = (newToken: string) => {
-      const cleanedToken = cleanToken(newToken);
-      setToken(cleanedToken);
-      localStorage.setItem('flatnav_github_token', cleanedToken);
-      
-      if (cleanedToken) {
-          // Clear error state before checking
-          setStatus({ type: 'idle', msg: '' });
-          setNeedsTokenConfig(false);
-          checkForBackup(cleanedToken);
-      }
-  };
-
-  const handleUpload = async () => {
-    if (!token) {
-      setNeedsTokenConfig(true);
-      return;
-    }
-    
-    setStatus({ type: 'loading', msg: '正在上传数据...' });
-    
-    try {
-      const dataContent = JSON.stringify(getData(), null, 2);
-      
-      let targetGistId = gistId;
-      // Try to find existing gist if we don't have ID but have token
-      if (!targetGistId) {
-           try {
-                const res = await fetch('https://api.github.com/gists', {
-                     headers: { 
-                         'Authorization': `Bearer ${token}`,
-                         'Accept': 'application/vnd.github.v3+json'
-                     },
-                     credentials: 'omit'
-                });
-                if (res.ok) {
-                    const gists = await res.json();
-                    if (Array.isArray(gists)) {
-                        const existing = gists.find((g: any) => g.files && g.files[GIST_FILENAME]);
-                        if (existing) targetGistId = existing.id;
-                    }
-                }
-           } catch (e) { /* ignore silent check */ }
-      }
-
-      const url = targetGistId ? `https://api.github.com/gists/${targetGistId}` : 'https://api.github.com/gists';
-      const method = targetGistId ? 'PATCH' : 'POST';
-
-      const body = {
-        description: "FlatNav Dashboard Backup (由 FlatNav 自动同步)",
-        public: false, 
-        files: {
-          [GIST_FILENAME]: {
-            content: dataContent
-          }
-        }
-      };
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        credentials: 'omit'
-      });
-
-      if (!res.ok) {
-          throw new Error(`Upload failed: ${res.status}`);
-      }
-
-      const result = await res.json();
-      setGistId(result.id);
-      setLastUpdated(new Date().toLocaleString());
-      localStorage.setItem('flatnav_gist_id', result.id);
-      
-      setStatus({ type: 'success', msg: '上传成功！数据已同步到云端。' });
-    } catch (err: any) {
-      handleError(err);
-    }
-  };
-
-  const handleDownload = async () => {
-    if (!token) {
-       setNeedsTokenConfig(true);
-       return;
-    }
-
-    if (!gistId) {
-        setStatus({ type: 'error', msg: '未找到可下载的备份文件' });
-        checkForBackup(token); 
-        return;
-    }
-
-    setStatus({ type: 'loading', msg: '正在下载并恢复数据...' });
-
-    try {
-      const res = await fetch(`https://api.github.com/gists/${gistId}?t=${Date.now()}`, {
-        headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github.v3+json'
-        },
-        credentials: 'omit'
-      });
-
-      if (!res.ok) {
-           throw new Error(`Download failed: ${res.status}`);
-      }
-
-      const result = await res.json();
-      const file = result.files[GIST_FILENAME];
-
-      if (!file || !file.content) throw new Error('备份文件内容为空');
-
-      const parsedData = JSON.parse(file.content);
-      
-      onDataSync(parsedData);
-      
-      setStatus({ type: 'success', msg: '数据恢复成功！页面即将刷新...' });
-      
-      setTimeout(() => {
-         window.location.reload();
-      }, 1500);
-
-    } catch (err: any) {
-      handleError(err);
-    }
-  };
+const SyncModal: React.FC<SyncModalProps> = ({ 
+    isOpen, 
+    onClose, 
+    token, 
+    setToken, 
+    autoSync, 
+    setAutoSync,
+    status,
+    lastSuccessTime,
+    onUpload,
+    onDownload
+}) => {
+  const [showTokenInput, setShowTokenInput] = useState(!token);
+  const [localToken, setLocalToken] = useState(token);
 
   if (!isOpen) return null;
+
+  const handleSaveToken = () => {
+      setToken(localToken);
+      setShowTokenInput(false);
+  };
+
+  const isError = status.state === 'error';
+  const isLoading = status.state === 'loading';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity">
@@ -254,7 +48,7 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
         <div className="flex justify-between items-center p-5 border-b border-slate-100 shrink-0 bg-slate-50/80">
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <Github size={22} className="text-slate-900" />
-            云端同步
+            云端同步设置
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200 transition">
             <X size={20} />
@@ -263,27 +57,20 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
         
         <div className="p-6 space-y-6 overflow-y-auto">
           
-          {/* Token Configuration Section */}
-          {needsTokenConfig ? (
+          {/* Token Section */}
+          {(showTokenInput || !token) ? (
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 animate-in slide-in-from-top-2">
                   <div className="flex items-start gap-3 mb-4">
                       <div className="p-2 bg-blue-100 text-blue-600 rounded-lg shrink-0">
                           <Key size={20} />
                       </div>
                       <div>
-                          <h4 className="font-bold text-blue-900 text-sm">需要配置 GitHub Token</h4>
+                          <h4 className="font-bold text-blue-900 text-sm">配置 GitHub Token</h4>
                           <p className="text-xs text-blue-700 mt-1 leading-relaxed">
-                              为了同步您的私有数据，需要一个 GitHub 访问令牌 (Gist 权限)。
+                              用于访问 GitHub Gist 以存储数据。
                           </p>
                       </div>
                   </div>
-
-                  {status.type === 'error' && (
-                    <div className="mb-4 flex items-start gap-2 text-xs p-3 rounded-lg bg-red-50 text-red-600 border border-red-100 animate-in fade-in slide-in-from-top-1">
-                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                        <span className="font-medium break-words">{status.msg}</span>
-                    </div>
-                  )}
 
                   <div className="space-y-3">
                       <a 
@@ -293,131 +80,111 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
                         className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors shadow-sm"
                       >
                           <ExternalLink size={14} />
-                          第一步：点击获取 Token (已选好权限)
+                          点击获取 Token (Gist 权限)
                       </a>
                       
                       <div className="relative">
                         <input
                             type="text"
-                            value={token}
-                            onChange={(e) => setToken(e.target.value)}
+                            value={localToken}
+                            onChange={(e) => setLocalToken(e.target.value)}
                             className="w-full bg-white border border-blue-200 rounded-lg pl-3 pr-3 py-2.5 text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none text-xs font-mono shadow-sm"
-                            placeholder="第二步：粘贴 Token (例如 ghp_...)"
+                            placeholder="粘贴 Token (ghp_...)"
                         />
                       </div>
 
-                      <button 
-                        onClick={() => saveToken(token)}
-                        disabled={!token.trim()}
-                        className="w-full bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-bold py-2.5 rounded-lg transition-colors"
-                      >
-                          保存并连接
-                      </button>
-                      
-                      {/* Tips for connection issues */}
-                      <p className="text-[10px] text-slate-500 text-center pt-2">
-                        Token 仅保存在本地浏览器中，请勿泄露给他人。
-                      </p>
+                      <div className="flex gap-2">
+                        <button 
+                            onClick={handleSaveToken}
+                            disabled={!localToken.trim()}
+                            className="flex-1 bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-bold py-2.5 rounded-lg transition-colors"
+                        >
+                            保存
+                        </button>
+                        {token && (
+                            <button onClick={() => setShowTokenInput(false)} className="px-4 py-2 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-lg">
+                                取消
+                            </button>
+                        )}
+                      </div>
                   </div>
               </div>
           ) : (
-             /* Connected State */
-             <>
+            /* Connected / Status View */
+             <div className="space-y-4">
+                {/* Status Card */}
                 <div className={`p-4 rounded-xl border ${
-                    status.type === 'error' ? 'bg-red-50 border-red-200' :
-                    gistId ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'
-                } transition-colors duration-300`}>
+                    isError ? 'bg-red-50 border-red-200' :
+                    isLoading ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'
+                } transition-all duration-300`}>
                     <div className="flex items-start gap-3">
                         <div className={`mt-0.5 p-1.5 rounded-full ${
-                            status.type === 'error' ? 'bg-red-100 text-red-600' :
-                            gistId ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-500'
+                            isError ? 'bg-red-100 text-red-600' :
+                            isLoading ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
                         }`}>
-                            {isChecking ? <Loader2 size={16} className="animate-spin" /> : 
-                             status.type === 'error' ? <WifiOff size={16} /> : 
-                             gistId ? <Check size={16} /> : <HelpCircle size={16} />}
+                            {isLoading ? <Loader2 size={16} className="animate-spin" /> : 
+                             isError ? <WifiOff size={16} /> : 
+                             <Check size={16} />}
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <h4 className={`text-sm font-bold ${
-                                status.type === 'error' ? 'text-red-800' :
-                                gistId ? 'text-green-800' : 'text-slate-700'
-                            }`}>
-                                {isChecking ? '正在连接...' : status.type === 'error' ? '连接错误' : gistId ? '云端已连接' : '就绪'}
-                            </h4>
-                            <p className="text-xs text-slate-500 mt-1 leading-relaxed break-words">
-                                {isChecking ? '正在验证 Token...' : 
-                                 status.type === 'error' ? status.msg :
-                                 gistId ? `ID: ${gistId}` : 
-                                 '点击上传可创建新备份'}
-                            </p>
-                            {lastUpdated && (
-                                <div className="flex items-center gap-1.5 mt-2 text-[10px] font-medium text-green-700 bg-green-100/50 w-fit px-2 py-1 rounded-md">
-                                    <Clock size={10} />
-                                    {lastUpdated}
-                                </div>
-                            )}
+                        <div className="flex-1">
+                             <h4 className={`text-sm font-bold ${isError ? 'text-red-800' : 'text-slate-800'}`}>
+                                 {isError ? '同步状态异常' : status.message || '就绪'}
+                             </h4>
+                             {lastSuccessTime && (
+                                 <p className="text-xs text-slate-500 mt-1">上次同步: {lastSuccessTime}</p>
+                             )}
                         </div>
-                        {!isChecking && (
-                            <button onClick={() => checkForBackup(token)} className="text-slate-400 hover:text-blue-600 p-1 rounded-md hover:bg-slate-200/50 transition-colors" title="刷新状态">
-                                <RefreshCw size={14} />
-                            </button>
-                        )}
+                        <button 
+                            onClick={() => { setLocalToken(token); setShowTokenInput(true); }}
+                            className="text-[10px] text-slate-400 hover:text-blue-600 underline"
+                        >
+                            重置 Token
+                        </button>
                     </div>
                 </div>
 
-                {/* Status Message (Loading/Success) */}
-                {status.msg && status.type !== 'idle' && status.type !== 'error' && (
-                     <div className={`flex items-center gap-2 text-xs p-3 rounded-lg animate-in fade-in slide-in-from-bottom-2 ${
-                         status.type === 'success' ? 'bg-green-50 text-green-600 border border-green-100' : 
-                         'bg-blue-50 text-blue-600 border border-blue-100'
-                     }`}>
-                        {status.type === 'loading' && <Loader2 size={14} className="animate-spin shrink-0" />}
-                        {status.type === 'success' && <Check size={14} className="shrink-0" />}
-                        <span className="font-medium">{status.msg}</span>
-                     </div>
-                )}
-
-                <div className="grid gap-3 pt-2">
-                    <button
-                        onClick={handleUpload}
-                        disabled={isChecking || status.type === 'loading' || status.type === 'error'}
-                        className="group relative overflow-hidden flex items-center justify-between bg-slate-900 hover:bg-blue-600 text-white rounded-xl px-4 py-3.5 font-medium transition-all shadow-md hover:shadow-blue-500/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <div className="flex items-center gap-3 relative z-10">
-                            <UploadCloud size={18} className="text-blue-300 group-hover:text-white transition-colors" />
-                            <div className="text-left">
-                                <div className="text-sm font-bold">上传备份 (本机 &rarr; 云端)</div>
-                            </div>
+                {/* Auto Sync Toggle */}
+                <div className="flex items-center justify-between bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${autoSync ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
+                            <Zap size={20} className={autoSync ? 'fill-current' : ''} />
                         </div>
-                    </button>
-
-                    <button
-                        onClick={handleDownload}
-                        disabled={isChecking || status.type === 'loading' || !gistId}
-                        className="group relative overflow-hidden flex items-center justify-between bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-700 rounded-xl px-4 py-3.5 font-medium transition-all shadow-sm hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <div className="flex items-center gap-3 relative z-10">
-                            <DownloadCloud size={18} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
-                            <div className="text-left">
-                                <div className="text-sm font-bold group-hover:text-blue-700">恢复数据 (云端 &rarr; 本机)</div>
-                            </div>
+                        <div>
+                            <div className="font-bold text-slate-800 text-sm">自动同步</div>
+                            <div className="text-xs text-slate-500">修改后自动保存到云端</div>
                         </div>
-                    </button>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            className="sr-only peer"
+                            checked={autoSync}
+                            onChange={(e) => setAutoSync(e.target.checked)}
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex justify-center">
-                    <button 
-                        onClick={() => setNeedsTokenConfig(true)} 
-                        className={`text-[10px] flex items-center gap-1 transition-colors px-3 py-1.5 rounded-lg ${
-                            status.type === 'error' 
-                            ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' 
-                            : 'text-slate-400 hover:text-blue-600 hover:bg-slate-50'
-                        }`}
+                {/* Manual Actions */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                    <button
+                        onClick={onUpload}
+                        disabled={isLoading}
+                        className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
                     >
-                        <Key size={10} />
-                        {status.type === 'error' ? '检查或重新配置 Token' : '更换 Token / 重新配置'}
+                        <UploadCloud size={16} />
+                        手动上传
+                    </button>
+                    <button
+                        onClick={onDownload}
+                        disabled={isLoading}
+                        className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                    >
+                        <DownloadCloud size={16} />
+                        恢复备份
                     </button>
                 </div>
-             </>
+             </div>
           )}
 
         </div>
