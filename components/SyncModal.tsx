@@ -18,54 +18,7 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
   const [isChecking, setIsChecking] = useState(false);
   const [needsTokenConfig, setNeedsTokenConfig] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      const storedToken = localStorage.getItem('flatnav_github_token') || '';
-      const storedGistId = localStorage.getItem('flatnav_gist_id') || '';
-      
-      setToken(storedToken);
-      setGistId(storedGistId);
-      setStatus({ type: 'idle', msg: '' });
-      
-      if (storedToken) {
-        checkForBackup(storedToken);
-        setNeedsTokenConfig(false);
-      } else {
-        setNeedsTokenConfig(true);
-      }
-    }
-  }, [isOpen]);
-
-  const handleError = (err: any) => {
-      console.error(err);
-      let msg = err.message || '未知错误';
-      
-      if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
-          msg = '网络连接失败 (Failed to fetch)。请检查网络连接是否正常，或尝试使用 VPN 访问 GitHub API。';
-      } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
-          msg = 'Token 无效或过期 (401)。请检查 Token 是否正确。';
-          setNeedsTokenConfig(true);
-      } else if (msg.includes('403')) {
-          msg = '访问被拒绝 (403)。Token 可能权限不足或 API 调用超限。';
-      } else if (msg.includes('404')) {
-          msg = '未找到资源 (404)。';
-      }
-
-      setStatus({ type: 'error', msg });
-      setIsChecking(false);
-  };
-
-  const saveToken = (newToken: string) => {
-      // Clean token: remove spaces, newlines, control chars
-      const cleanedToken = newToken.trim().replace(/[\r\n\s]/g, '');
-      setToken(cleanedToken);
-      localStorage.setItem('flatnav_github_token', cleanedToken);
-      if (cleanedToken) {
-          setNeedsTokenConfig(false);
-          checkForBackup(cleanedToken);
-      }
-  };
-
+  // useCallback for checkForBackup to be stable for useEffect
   const checkForBackup = useCallback(async (authToken: string) => {
     if (!authToken) return;
     
@@ -73,13 +26,12 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
     setStatus({ type: 'loading', msg: '正在连接 GitHub...' });
     
     try {
-      // Use Bearer and Accept header for better compatibility
       const res = await fetch('https://api.github.com/gists', {
         headers: { 
             'Authorization': `Bearer ${authToken}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Cache-Control': 'no-cache'
-        }
+            'Accept': 'application/vnd.github.v3+json'
+        },
+        credentials: 'omit'
       });
 
       if (!res.ok) {
@@ -108,6 +60,53 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
     }
   }, []);
 
+  useEffect(() => {
+    if (isOpen) {
+      const storedToken = localStorage.getItem('flatnav_github_token') || '';
+      const storedGistId = localStorage.getItem('flatnav_gist_id') || '';
+      
+      setToken(storedToken);
+      setGistId(storedGistId);
+      setStatus({ type: 'idle', msg: '' });
+      
+      if (storedToken) {
+        checkForBackup(storedToken);
+        setNeedsTokenConfig(false);
+      } else {
+        setNeedsTokenConfig(true);
+      }
+    }
+  }, [isOpen, checkForBackup]);
+
+  const handleError = (err: any) => {
+      console.error(err);
+      let msg = err.message || '未知错误';
+      
+      if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('Network request failed')) {
+          msg = '网络连接失败 (Failed to fetch)。请检查网络/VPN，或确认 Token 格式正确。';
+      } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
+          msg = 'Token 无效或过期 (401)。请重新配置 Token。';
+      } else if (msg.includes('403')) {
+          msg = '访问被拒绝 (403)。Token 权限不足或 API 限流。';
+      } else if (msg.includes('404')) {
+          msg = '未找到资源 (404)。';
+      }
+
+      setStatus({ type: 'error', msg });
+      setIsChecking(false);
+  };
+
+  const saveToken = (newToken: string) => {
+      // Clean token: remove "Bearer " prefix, spaces, newlines, control chars
+      const cleanedToken = newToken.trim().replace(/^Bearer\s+/i, '').replace(/[\r\n\s]/g, '');
+      setToken(cleanedToken);
+      localStorage.setItem('flatnav_github_token', cleanedToken);
+      if (cleanedToken) {
+          setNeedsTokenConfig(false);
+          checkForBackup(cleanedToken);
+      }
+  };
+
   const handleUpload = async () => {
     if (!token) {
       setNeedsTokenConfig(true);
@@ -119,15 +118,16 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
     try {
       const dataContent = JSON.stringify(getData(), null, 2);
       
-      // Double check current list in case it was created elsewhere since load
       let targetGistId = gistId;
+      // Try to find existing gist if we don't have ID but have token
       if (!targetGistId) {
            try {
                 const res = await fetch('https://api.github.com/gists', {
                      headers: { 
                          'Authorization': `Bearer ${token}`,
                          'Accept': 'application/vnd.github.v3+json'
-                     }
+                     },
+                     credentials: 'omit'
                 });
                 if (res.ok) {
                     const gists = await res.json();
@@ -157,7 +157,8 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
           'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        credentials: 'omit'
       });
 
       if (!res.ok) {
@@ -183,7 +184,6 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
 
     if (!gistId) {
         setStatus({ type: 'error', msg: '未找到可下载的备份文件' });
-        // Try to find it again just in case
         checkForBackup(token); 
         return;
     }
@@ -195,7 +195,8 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
         headers: { 
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/vnd.github.v3+json'
-        }
+        },
+        credentials: 'omit'
       });
 
       if (!res.ok) {
@@ -273,7 +274,7 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
                             value={token}
                             onChange={(e) => setToken(e.target.value)}
                             className="w-full bg-white border border-blue-200 rounded-lg pl-3 pr-3 py-2.5 text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none text-xs font-mono shadow-sm"
-                            placeholder="第二步：将生成的 ghp_... 粘贴在这里"
+                            placeholder="第二步：粘贴 Token (例如 ghp_...)"
                         />
                       </div>
 
@@ -287,7 +288,7 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
                       
                       {/* Tips for connection issues */}
                       <p className="text-[10px] text-slate-500 text-center pt-2">
-                        如果遇到连接错误，请检查网络是否能访问 api.github.com
+                        Token 仅保存在本地浏览器中，请勿泄露给他人。
                       </p>
                   </div>
               </div>
@@ -350,7 +351,7 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
                 <div className="grid gap-3 pt-2">
                     <button
                         onClick={handleUpload}
-                        disabled={isChecking || status.type === 'loading'}
+                        disabled={isChecking || status.type === 'loading' || status.type === 'error'}
                         className="group relative overflow-hidden flex items-center justify-between bg-slate-900 hover:bg-blue-600 text-white rounded-xl px-4 py-3.5 font-medium transition-all shadow-md hover:shadow-blue-500/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <div className="flex items-center gap-3 relative z-10">
@@ -378,10 +379,14 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
                 <div className="pt-4 border-t border-slate-100 flex justify-center">
                     <button 
                         onClick={() => setNeedsTokenConfig(true)} 
-                        className="text-[10px] text-slate-400 hover:text-blue-600 flex items-center gap-1 transition-colors"
+                        className={`text-[10px] flex items-center gap-1 transition-colors px-3 py-1.5 rounded-lg ${
+                            status.type === 'error' 
+                            ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' 
+                            : 'text-slate-400 hover:text-blue-600 hover:bg-slate-50'
+                        }`}
                     >
                         <Key size={10} />
-                        更换 Token / 重新配置
+                        {status.type === 'error' ? '检查或重新配置 Token' : '更换 Token / 重新配置'}
                     </button>
                 </div>
              </>
