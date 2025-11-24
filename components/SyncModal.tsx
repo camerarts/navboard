@@ -128,7 +128,8 @@ const SyncModal: React.FC<SyncModalProps> = ({
                         </div>
                         <div className="flex-1">
                              <h4 className={`text-sm font-bold ${isError ? 'text-red-800' : 'text-slate-800'}`}>
-                                 {isError ? '同步状态异常' : status.message || '就绪'}
+                                 {/* Show the specific error message even if it is an error state */}
+                                 {status.message || (isError ? '同步出错' : '就绪')}
                              </h4>
                              {lastSuccessTime && (
                                  <p className="text-xs text-slate-500 mt-1">上次同步: {lastSuccessTime}</p>
