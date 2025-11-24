@@ -71,7 +71,13 @@ const App: React.FC = () => {
   // --- Data Restoration ---
   const handleLoadDashboardData = (json: any) => {
       if (json.bookmarks && Array.isArray(json.bookmarks)) setBookmarks(json.bookmarks);
-      if (json.categories && Array.isArray(json.categories)) setCategories(json.categories);
+      if (json.categories && Array.isArray(json.categories)) {
+          setCategories(json.categories);
+          // If current active category is invalid, reset it
+          if (activeCategoryId && !json.categories.find((c: Category) => c.id === activeCategoryId)) {
+               if (json.categories.length > 0) setActiveCategoryId(json.categories[0].id);
+          }
+      }
       
       if (json.config) {
           if (json.config.appName) {
@@ -97,9 +103,11 @@ const App: React.FC = () => {
   const handleManualDownload = async () => {
       try {
           const data = await pullData();
-          handleLoadDashboardData(data);
-          alert('数据恢复成功！页面将刷新...');
-          setTimeout(() => window.location.reload(), 1000);
+          if (data) {
+              handleLoadDashboardData(data);
+              alert('数据恢复成功！页面将刷新以应用所有更改。');
+              setTimeout(() => window.location.reload(), 500);
+          }
       } catch (e) {
           console.error(e);
           alert('恢复失败，请检查控制台或 Token 设置');
@@ -115,6 +123,7 @@ const App: React.FC = () => {
           return;
       }
 
+      // Only push if autoSync is enabled AND we have a token AND the data is loaded (not empty default overriding cloud)
       if (autoSync && token) {
           const timer = setTimeout(() => {
               // Push changes silently (true = silent)
@@ -127,29 +136,33 @@ const App: React.FC = () => {
 
   // --- Auto-Sync PULL Effect (On Mount) ---
   useEffect(() => {
+    // 定义一个异步函数来处理初始数据加载
     const initCloudData = async () => {
+        // 只有当 Token 存在时才尝试同步（Token 可能来自 constants 硬编码或 localStorage）
         if (token) {
             try {
-                // Try to pull data immediately on load if token is available
+                console.log('Auto-sync: Checking for cloud updates...');
                 const data = await pullData();
                 if (data) {
                     handleLoadDashboardData(data);
-                    console.log('Successfully synced from cloud on startup');
+                    console.log('Auto-sync: Data synchronized from cloud.');
                 }
             } catch (e: any) {
-                // If it's a 404/not found, it might just mean no backup exists yet.
-                // Don't alert the user, just log it.
-                console.warn('Auto-pull on startup:', e.message);
+                // 如果是 404 或其他错误，通常不需要打扰用户，但在控制台记录
+                console.warn('Auto-sync startup info:', e.message);
             }
         }
     };
     
-    initCloudData();
-  }, []); // Run only on mount. Deps can be empty because token is lazy-initialized and stable in closure context relative to this effect? 
-  // Actually, to be safe, if we use lazy init in hook, token is ready.
-  // We exclude deps to ensure it ONLY runs on mount.
+    // 延迟一点执行，确保 React 状态稳定，且让用户先看到 UI 骨架
+    const timer = setTimeout(() => {
+        initCloudData();
+    }, 500);
 
-  // Initialize state and load data
+    return () => clearTimeout(timer);
+  }, [token, pullData]); // 依赖项包含 token，确保一旦 Token 被解码或加载，立即触发同步
+
+  // Initialize state from LocalStorage (Fallback if cloud fails or no token)
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
         setIsSidebarOpen(false);
@@ -162,6 +175,8 @@ const App: React.FC = () => {
     const storedAppFontSize = localStorage.getItem('flatnav_app_font_size');
     const storedAppSubtitle = localStorage.getItem('flatnav_app_subtitle');
 
+    // Only load from local storage if state is currently empty/default to avoid overwriting cloud pull
+    // However, since Cloud Pull is async, we load Local first to show *something* fast.
     if (storedBookmarks) setBookmarks(JSON.parse(storedBookmarks));
     if (storedCategories) {
         const parsedCats = JSON.parse(storedCategories);
@@ -180,7 +195,7 @@ const App: React.FC = () => {
     if (storedAppSubtitle) setAppSubtitle(storedAppSubtitle);
   }, []);
 
-  // Persist changes
+  // Persist changes to LocalStorage
   useEffect(() => {
     localStorage.setItem('flatnav_bookmarks', JSON.stringify(bookmarks));
     localStorage.setItem('flatnav_categories', JSON.stringify(categories));
