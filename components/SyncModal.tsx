@@ -24,11 +24,13 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
   const handleError = (err: any) => {
       console.error(err);
       let msg = err.message || '未知错误';
+      let isAuthError = false;
       
       if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('Network request failed')) {
           msg = '网络连接失败 (Failed to fetch)。请检查网络连接是否正常，或尝试使用 VPN 访问 GitHub API。';
       } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('bad credentials')) {
           msg = 'Token 无效或过期 (401)。请重新配置 Token。';
+          isAuthError = true;
       } else if (msg.includes('403')) {
           msg = '访问被拒绝 (403)。Token 权限不足或 API 限流。';
       } else if (msg.includes('404')) {
@@ -37,6 +39,10 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
 
       setStatus({ type: 'error', msg });
       setIsChecking(false);
+
+      if (isAuthError) {
+          setNeedsTokenConfig(true);
+      }
   };
 
   // useCallback for checkForBackup to be stable for useEffect
@@ -61,6 +67,11 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
 
       const gists = await res.json();
       
+      // Ensure gists is an array
+      if (!Array.isArray(gists)) {
+          throw new Error('Invalid response format from GitHub');
+      }
+
       const backupGist = gists.find((g: any) => g.files && g.files[GIST_FILENAME]);
       
       if (backupGist) {
@@ -106,7 +117,10 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
       const cleanedToken = cleanToken(newToken);
       setToken(cleanedToken);
       localStorage.setItem('flatnav_github_token', cleanedToken);
+      
       if (cleanedToken) {
+          // Clear error state before checking
+          setStatus({ type: 'idle', msg: '' });
           setNeedsTokenConfig(false);
           checkForBackup(cleanedToken);
       }
@@ -136,8 +150,10 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
                 });
                 if (res.ok) {
                     const gists = await res.json();
-                    const existing = gists.find((g: any) => g.files && g.files[GIST_FILENAME]);
-                    if (existing) targetGistId = existing.id;
+                    if (Array.isArray(gists)) {
+                        const existing = gists.find((g: any) => g.files && g.files[GIST_FILENAME]);
+                        if (existing) targetGistId = existing.id;
+                    }
                 }
            } catch (e) { /* ignore silent check */ }
       }
@@ -261,6 +277,13 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
                           </p>
                       </div>
                   </div>
+
+                  {status.type === 'error' && (
+                    <div className="mb-4 flex items-start gap-2 text-xs p-3 rounded-lg bg-red-50 text-red-600 border border-red-100 animate-in fade-in slide-in-from-top-1">
+                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                        <span className="font-medium break-words">{status.msg}</span>
+                    </div>
+                  )}
 
                   <div className="space-y-3">
                       <a 
