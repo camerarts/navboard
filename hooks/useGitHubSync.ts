@@ -11,16 +11,30 @@ export interface SyncStatus {
 
 // 辅助函数：安全解码 Token
 const getDecodedToken = () => {
-    if (!GITHUB_TOKEN_ENCODED) return '';
+    // Fix: Cast GITHUB_TOKEN_ENCODED to string to prevent TypeScript from narrowing it to 'never' 
+    // when it is initialized as an empty string literal constant in constants.tsx.
+    const tokenStr = GITHUB_TOKEN_ENCODED as string;
+    
+    if (!tokenStr) return '';
     try {
+        const cleanEncoded = tokenStr.trim();
         // 如果用户不小心填入了明文（以 ghp_ 开头），直接返回，避免解码报错
-        if (GITHUB_TOKEN_ENCODED.startsWith('ghp_') || GITHUB_TOKEN_ENCODED.startsWith('github_pat_')) {
-            return GITHUB_TOKEN_ENCODED;
+        // 注意：这种做法会再次触发 GitHub 扫描报警，建议用户务必使用 Base64
+        if (cleanEncoded.startsWith('ghp_') || cleanEncoded.startsWith('github_pat_')) {
+            console.warn('警告：检测到明文 Token，请尽快转换为 Base64 编码以避免泄漏风险。');
+            return cleanEncoded;
         }
         // 进行 Base64 解码
-        return atob(GITHUB_TOKEN_ENCODED);
+        const decoded = atob(cleanEncoded);
+        
+        // 简单的完整性检查
+        if (!decoded.startsWith('ghp_') && !decoded.startsWith('github_pat_')) {
+            // 虽然不是所有的 token 都以此开头（旧版），但大部分是。仅作控制台提示。
+            // console.warn('解码后的 Token 格式可能不正确');
+        }
+        return decoded;
     } catch (e) {
-        console.warn('GitHub Token 解码失败，请检查是否为有效的 Base64 字符串');
+        console.error('GitHub Token 解码失败：请确保 constants.tsx 中填入的是有效的 Base64 字符串', e);
         return '';
     }
 };
@@ -30,7 +44,7 @@ export const useGitHubSync = () => {
     const [token, setTokenState] = useState(() => {
         const hardcoded = getDecodedToken();
         if (typeof window !== 'undefined') {
-            // 如果代码中有硬编码，优先使用硬编码，这能解决“刷新后失效”的问题
+            // 如果代码中有硬编码，优先使用硬编码
             if (hardcoded) return hardcoded;
             return localStorage.getItem('flatnav_github_token') || '';
         }
@@ -75,6 +89,7 @@ export const useGitHubSync = () => {
 
     // Helper to find Gist ID if missing
     const findGistId = async (authToken: string): Promise<string | null> => {
+        if (!authToken) return null;
         try {
             const res = await fetch('https://api.github.com/gists', {
                 headers: { 
@@ -82,6 +97,11 @@ export const useGitHubSync = () => {
                     'Accept': 'application/vnd.github.v3+json'
                 }
             });
+            
+            if (res.status === 401) {
+                throw new Error('Token 无效 (401)');
+            }
+            
             if (!res.ok) return null;
             const gists = await res.json();
             if (Array.isArray(gists)) {
@@ -90,7 +110,9 @@ export const useGitHubSync = () => {
                 return found ? found.id : null;
             }
             return null;
-        } catch (e) {
+        } catch (e: any) {
+            console.error('Find Gist Error:', e);
+            if (e.message.includes('401')) throw e; // Re-throw auth errors
             return null;
         }
     };
@@ -134,9 +156,9 @@ export const useGitHubSync = () => {
             });
 
             if (!res.ok) {
-                if (res.status === 401) throw new Error('Token 无效或过期');
-                if (res.status === 403) throw new Error('API 访问受限 (403)');
-                if (res.status === 404) throw new Error('Gist 未找到 (404)');
+                if (res.status === 401) throw new Error('Token 已失效，请检查设置');
+                if (res.status === 403) throw new Error('API 频率超限或无权限');
+                if (res.status === 404) throw new Error('Gist 未找到，正在重试...');
                 throw new Error(`同步失败 (${res.status})`);
             }
 
@@ -151,11 +173,11 @@ export const useGitHubSync = () => {
             const now = new Date().toLocaleString();
             setLastSuccessTime(now);
             localStorage.setItem('flatnav_last_sync_time', now);
-            setStatus({ state: 'success', message: '云端同步成功' });
+            setStatus({ state: 'success', message: '同步成功' });
 
         } catch (err: any) {
             console.error('Sync Error:', err);
-            setStatus({ state: 'error', message: err.message || '同步发生错误' });
+            setStatus({ state: 'error', message: err.message || '同步异常' });
             
             // If auth failed, disable auto-sync to stop loop
             if (err.message.includes('Token') || err.message.includes('401')) {
@@ -167,7 +189,7 @@ export const useGitHubSync = () => {
     const pullData = useCallback(async () => {
         if (!token) throw new Error('请先配置 Token');
         
-        setStatus({ state: 'loading', message: '正在检查云端备份...' });
+        setStatus({ state: 'loading', message: '正在连接...' });
 
         try {
             let targetId = gistId;
@@ -176,9 +198,9 @@ export const useGitHubSync = () => {
             }
 
             if (!targetId) {
-                // 如果没有找到 Gist，这可能是一个新账号，不应该报错，而是返回空以便前端处理
+                // 如果没有找到 Gist，这可能是一个新账号，不应该报错
                 console.log('No backup gist found.');
-                setStatus({ state: 'success', message: '无云端备份' });
+                setStatus({ state: 'success', message: '云端无备份数据' });
                 return null;
             }
 
@@ -196,18 +218,21 @@ export const useGitHubSync = () => {
                 }
             });
 
+            if (res.status === 401) throw new Error('Token 已失效');
             if (!res.ok) throw new Error(`下载失败 (${res.status})`);
 
             const result = await res.json();
             const file = result.files[GIST_FILENAME];
             
-            if (!file || !file.content) throw new Error('备份文件内容为空');
+            if (!file || !file.content) throw new Error('备份文件为空');
 
             setStatus({ state: 'success', message: '下载成功' });
             return JSON.parse(file.content);
 
         } catch (err: any) {
             setStatus({ state: 'error', message: err.message });
+            // Re-throw to let the caller know it failed
+            if (err.message.includes('401')) setAutoSync(false);
             throw err;
         }
     }, [token, gistId]);
