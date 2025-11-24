@@ -11,30 +11,23 @@ export interface SyncStatus {
 
 // 辅助函数：安全解码 Token
 const getDecodedToken = () => {
-    // Fix: Cast GITHUB_TOKEN_ENCODED to string to prevent TypeScript from narrowing it to 'never' 
-    // when it is initialized as an empty string literal constant in constants.tsx.
+    // 强制转换为 string，防止 TypeScript 在常量为空字符串时将其推断为 never 或特定字面量类型，导致 .trim() 报错
     const tokenStr = GITHUB_TOKEN_ENCODED as string;
     
     if (!tokenStr) return '';
     try {
         const cleanEncoded = tokenStr.trim();
-        // 如果用户不小心填入了明文（以 ghp_ 开头），直接返回，避免解码报错
-        // 注意：这种做法会再次触发 GitHub 扫描报警，建议用户务必使用 Base64
+        // 如果用户不小心填入了明文（以 ghp_ 开头），直接返回，但在控制台警告
         if (cleanEncoded.startsWith('ghp_') || cleanEncoded.startsWith('github_pat_')) {
-            console.warn('警告：检测到明文 Token，请尽快转换为 Base64 编码以避免泄漏风险。');
+            console.warn('【配置警告】检测到 constants.tsx 中填入了明文 Token。GitHub 安全扫描可能已自动将其作废，导致同步失败。请使用 Base64 编码。');
             return cleanEncoded;
         }
+        
         // 进行 Base64 解码
         const decoded = atob(cleanEncoded);
-        
-        // 简单的完整性检查
-        if (!decoded.startsWith('ghp_') && !decoded.startsWith('github_pat_')) {
-            // 虽然不是所有的 token 都以此开头（旧版），但大部分是。仅作控制台提示。
-            // console.warn('解码后的 Token 格式可能不正确');
-        }
-        return decoded;
+        return decoded.trim();
     } catch (e) {
-        console.error('GitHub Token 解码失败：请确保 constants.tsx 中填入的是有效的 Base64 字符串', e);
+        console.error('【配置错误】GitHub Token 解码失败：请确保 constants.tsx 中填入的是有效的 Base64 字符串 (无空格/换行)', e);
         return '';
     }
 };
@@ -99,7 +92,8 @@ export const useGitHubSync = () => {
             });
             
             if (res.status === 401) {
-                throw new Error('Token 无效 (401)');
+                // 不在这里抛出，让外层处理
+                return null;
             }
             
             if (!res.ok) return null;
@@ -112,7 +106,6 @@ export const useGitHubSync = () => {
             return null;
         } catch (e: any) {
             console.error('Find Gist Error:', e);
-            if (e.message.includes('401')) throw e; // Re-throw auth errors
             return null;
         }
     };
@@ -156,9 +149,9 @@ export const useGitHubSync = () => {
             });
 
             if (!res.ok) {
-                if (res.status === 401) throw new Error('Token 已失效，请检查设置');
+                if (res.status === 401) throw new Error('Token 无效或已失效。请检查是否被 GitHub 自动作废。');
                 if (res.status === 403) throw new Error('API 频率超限或无权限');
-                if (res.status === 404) throw new Error('Gist 未找到，正在重试...');
+                if (res.status === 404) throw new Error('Gist 未找到，或已被删除');
                 throw new Error(`同步失败 (${res.status})`);
             }
 
@@ -177,10 +170,11 @@ export const useGitHubSync = () => {
 
         } catch (err: any) {
             console.error('Sync Error:', err);
-            setStatus({ state: 'error', message: err.message || '同步异常' });
+            const msg = err.message || '同步异常';
+            setStatus({ state: 'error', message: msg });
             
             // If auth failed, disable auto-sync to stop loop
-            if (err.message.includes('Token') || err.message.includes('401')) {
+            if (msg.includes('Token') || msg.includes('401') || msg.includes('失效')) {
                 setAutoSync(false);
             }
         }
@@ -218,21 +212,23 @@ export const useGitHubSync = () => {
                 }
             });
 
-            if (res.status === 401) throw new Error('Token 已失效');
+            if (res.status === 401) throw new Error('Token 无效或已失效 (401)');
+            if (res.status === 404) throw new Error('云端备份文件未找到 (404)');
             if (!res.ok) throw new Error(`下载失败 (${res.status})`);
 
             const result = await res.json();
             const file = result.files[GIST_FILENAME];
             
-            if (!file || !file.content) throw new Error('备份文件为空');
+            if (!file || !file.content) throw new Error('备份文件内容为空');
 
             setStatus({ state: 'success', message: '下载成功' });
             return JSON.parse(file.content);
 
         } catch (err: any) {
-            setStatus({ state: 'error', message: err.message });
+            const msg = err.message || '下载失败';
+            setStatus({ state: 'error', message: msg });
             // Re-throw to let the caller know it failed
-            if (err.message.includes('401')) setAutoSync(false);
+            if (msg.includes('401') || msg.includes('失效')) setAutoSync(false);
             throw err;
         }
     }, [token, gistId]);
