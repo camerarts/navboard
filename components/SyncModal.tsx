@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Github, UploadCloud, DownloadCloud, AlertCircle, Check, Eye, EyeOff, Loader2, RefreshCw, Clock, Key, ExternalLink, HelpCircle } from 'lucide-react';
+import { X, Github, UploadCloud, DownloadCloud, AlertCircle, Check, Loader2, RefreshCw, Clock, Key, ExternalLink, HelpCircle, WifiOff } from 'lucide-react';
 
 interface SyncModalProps {
   isOpen: boolean;
@@ -11,16 +11,13 @@ interface SyncModalProps {
 const GIST_FILENAME = 'flatnav_backup.json';
 
 const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataSync }) => {
-  // Initialize from localStorage to persist user's own token
   const [token, setToken] = useState('');
   const [gistId, setGistId] = useState('');
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [status, setStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', msg: string }>({ type: 'idle', msg: '' });
-  const [showToken, setShowToken] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [needsTokenConfig, setNeedsTokenConfig] = useState(false);
 
-  // Load saved data when modal opens
   useEffect(() => {
     if (isOpen) {
       const storedToken = localStorage.getItem('flatnav_github_token') || '';
@@ -39,17 +36,36 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
     }
   }, [isOpen]);
 
+  const handleError = (err: any) => {
+      console.error(err);
+      let msg = err.message || '未知错误';
+      
+      if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
+          msg = '网络连接失败 (Failed to fetch)。请检查网络连接是否正常，或尝试使用 VPN 访问 GitHub API。';
+      } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
+          msg = 'Token 无效或过期 (401)。请检查 Token 是否正确。';
+          setNeedsTokenConfig(true);
+      } else if (msg.includes('403')) {
+          msg = '访问被拒绝 (403)。Token 可能权限不足或 API 调用超限。';
+      } else if (msg.includes('404')) {
+          msg = '未找到资源 (404)。';
+      }
+
+      setStatus({ type: 'error', msg });
+      setIsChecking(false);
+  };
+
   const saveToken = (newToken: string) => {
-      const trimmed = newToken.trim();
-      setToken(trimmed);
-      localStorage.setItem('flatnav_github_token', trimmed);
-      if (trimmed) {
+      // Clean token: remove spaces, newlines, control chars
+      const cleanedToken = newToken.trim().replace(/[\r\n\s]/g, '');
+      setToken(cleanedToken);
+      localStorage.setItem('flatnav_github_token', cleanedToken);
+      if (cleanedToken) {
           setNeedsTokenConfig(false);
-          checkForBackup(trimmed);
+          checkForBackup(cleanedToken);
       }
   };
 
-  // Auto-discover backup
   const checkForBackup = useCallback(async (authToken: string) => {
     if (!authToken) return;
     
@@ -57,24 +73,21 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
     setStatus({ type: 'loading', msg: '正在连接 GitHub...' });
     
     try {
-      // 1. Get user's gists
+      // Use Bearer and Accept header for better compatibility
       const res = await fetch('https://api.github.com/gists', {
         headers: { 
-            'Authorization': `token ${authToken}`,
+            'Authorization': `Bearer ${authToken}`,
+            'Accept': 'application/vnd.github.v3+json',
             'Cache-Control': 'no-cache'
         }
       });
 
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-            throw new Error('Token 无效或已过期，请重新配置');
-        }
-        throw new Error('连接 GitHub 失败，请检查网络');
+        throw new Error(`GitHub API Error: ${res.status}`);
       }
 
       const gists = await res.json();
       
-      // 2. Find gist with specific filename
       const backupGist = gists.find((g: any) => g.files && g.files[GIST_FILENAME]);
       
       if (backupGist) {
@@ -84,18 +97,12 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
         setStatus({ type: 'success', msg: `已关联云端备份` });
         localStorage.setItem('flatnav_gist_id', backupGist.id);
       } else {
-        // Don't clear gistID immediately if we have one in local storage but can't find it in list (pagination issues etc), 
-        // but here we assume recent list is enough.
         setGistId(''); 
         setLastUpdated(null);
         setStatus({ type: 'idle', msg: '未找到现有备份，上传后将自动创建。' });
       }
     } catch (err: any) {
-      console.error(err);
-      setStatus({ type: 'error', msg: err.message });
-      if (err.message.includes('Token')) {
-          setNeedsTokenConfig(true);
-      }
+      handleError(err);
     } finally {
       setIsChecking(false);
     }
@@ -112,21 +119,22 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
     try {
       const dataContent = JSON.stringify(getData(), null, 2);
       
-      // Double check if we need to create or update
+      // Double check current list in case it was created elsewhere since load
       let targetGistId = gistId;
-      
       if (!targetGistId) {
-           // Try to find it one last time to avoid duplicates
            try {
                 const res = await fetch('https://api.github.com/gists', {
-                        headers: { 'Authorization': `token ${token}` }
+                     headers: { 
+                         'Authorization': `Bearer ${token}`,
+                         'Accept': 'application/vnd.github.v3+json'
+                     }
                 });
                 if (res.ok) {
                     const gists = await res.json();
                     const existing = gists.find((g: any) => g.files && g.files[GIST_FILENAME]);
                     if (existing) targetGistId = existing.id;
                 }
-           } catch (e) { /* ignore */ }
+           } catch (e) { /* ignore silent check */ }
       }
 
       const url = targetGistId ? `https://api.github.com/gists/${targetGistId}` : 'https://api.github.com/gists';
@@ -145,15 +153,15 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
       const res = await fetch(url, {
         method,
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body)
       });
 
       if (!res.ok) {
-          if (res.status === 401) throw new Error('Token 权限不足或已过期');
-          throw new Error(`上传失败 (${res.status})`);
+          throw new Error(`Upload failed: ${res.status}`);
       }
 
       const result = await res.json();
@@ -161,13 +169,9 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
       setLastUpdated(new Date().toLocaleString());
       localStorage.setItem('flatnav_gist_id', result.id);
       
-      setStatus({ type: 'success', msg: '上传成功！现在可在其他设备同步此数据。' });
+      setStatus({ type: 'success', msg: '上传成功！数据已同步到云端。' });
     } catch (err: any) {
-      console.error(err);
-      setStatus({ type: 'error', msg: err.message });
-      if (err.message.includes('Token') || err.message.includes('401')) {
-          setNeedsTokenConfig(true);
-      }
+      handleError(err);
     }
   };
 
@@ -179,7 +183,8 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
 
     if (!gistId) {
         setStatus({ type: 'error', msg: '未找到可下载的备份文件' });
-        checkForBackup(token); // Try to find it again
+        // Try to find it again just in case
+        checkForBackup(token); 
         return;
     }
 
@@ -187,13 +192,14 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
 
     try {
       const res = await fetch(`https://api.github.com/gists/${gistId}?t=${Date.now()}`, {
-        headers: { 'Authorization': `token ${token}` }
+        headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+        }
       });
 
       if (!res.ok) {
-           if (res.status === 404) throw new Error('云端文件不存在');
-           if (res.status === 401) throw new Error('Token 失效');
-           throw new Error('下载请求失败');
+           throw new Error(`Download failed: ${res.status}`);
       }
 
       const result = await res.json();
@@ -212,11 +218,7 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
       }, 1500);
 
     } catch (err: any) {
-      console.error(err);
-      setStatus({ type: 'error', msg: err.message });
-      if (err.message.includes('Token') || err.message.includes('401')) {
-          setNeedsTokenConfig(true);
-      }
+      handleError(err);
     }
   };
 
@@ -282,6 +284,11 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
                       >
                           保存并连接
                       </button>
+                      
+                      {/* Tips for connection issues */}
+                      <p className="text-[10px] text-slate-500 text-center pt-2">
+                        如果遇到连接错误，请检查网络是否能访问 api.github.com
+                      </p>
                   </div>
               </div>
           ) : (
@@ -296,7 +303,9 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
                             status.type === 'error' ? 'bg-red-100 text-red-600' :
                             gistId ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-500'
                         }`}>
-                            {isChecking ? <Loader2 size={16} className="animate-spin" /> : status.type === 'error' ? <AlertCircle size={16} /> : gistId ? <Check size={16} /> : <HelpCircle size={16} />}
+                            {isChecking ? <Loader2 size={16} className="animate-spin" /> : 
+                             status.type === 'error' ? <WifiOff size={16} /> : 
+                             gistId ? <Check size={16} /> : <HelpCircle size={16} />}
                         </div>
                         <div className="flex-1 min-w-0">
                             <h4 className={`text-sm font-bold ${
@@ -305,10 +314,10 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
                             }`}>
                                 {isChecking ? '正在连接...' : status.type === 'error' ? '连接错误' : gistId ? '云端已连接' : '就绪'}
                             </h4>
-                            <p className="text-xs text-slate-500 mt-1 leading-relaxed truncate">
+                            <p className="text-xs text-slate-500 mt-1 leading-relaxed break-words">
                                 {isChecking ? '正在验证 Token...' : 
                                  status.type === 'error' ? status.msg :
-                                 gistId ? `ID: ${gistId.substring(0, 8)}...` : 
+                                 gistId ? `ID: ${gistId}` : 
                                  '点击上传可创建新备份'}
                             </p>
                             {lastUpdated && (
