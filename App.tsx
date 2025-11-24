@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Download, Upload, Cloud } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Download, Upload, Cloud, RefreshCw, AlertCircle } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -8,6 +8,7 @@ import LoginModal from './components/LoginModal';
 import SiteConfigModal from './components/SiteConfigModal';
 import DashboardWidgets from './components/DashboardWidgets';
 import SyncModal from './components/SyncModal';
+import { useGitHubSync } from './hooks/useGitHubSync';
 import { Bookmark, Category } from './types';
 import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES, CATEGORY_ICONS } from './constants';
 
@@ -35,7 +36,7 @@ const App: React.FC = () => {
   // Theme State
   const [theme, setTheme] = useState<ThemeType>('light');
   
-  // Sidebar State - Default to true for desktop, will check on mount
+  // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Drag State
@@ -45,6 +46,85 @@ const App: React.FC = () => {
   const [appName, setAppName] = useState('FlatNav');
   const [appFontSize, setAppFontSize] = useState('text-xl');
   const [appSubtitle, setAppSubtitle] = useState('Dashboard');
+
+  // --- GitHub Sync Hook Integration ---
+  const { 
+    token, setToken, autoSync, setAutoSync, status: syncStatus, lastSuccessTime, pushData, pullData 
+  } = useGitHubSync();
+
+  // --- Data Getter for Sync ---
+  const getDashboardData = () => {
+    return {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      bookmarks,
+      categories,
+      config: {
+        appName,
+        appSubtitle,
+        appFontSize,
+        theme
+      }
+    };
+  };
+
+  // --- Data Restoration ---
+  const handleLoadDashboardData = (json: any) => {
+      if (json.bookmarks && Array.isArray(json.bookmarks)) setBookmarks(json.bookmarks);
+      if (json.categories && Array.isArray(json.categories)) setCategories(json.categories);
+      
+      if (json.config) {
+          if (json.config.appName) {
+              setAppName(json.config.appName);
+              localStorage.setItem('flatnav_app_name', json.config.appName);
+          }
+          if (json.config.appSubtitle) {
+              setAppSubtitle(json.config.appSubtitle);
+              localStorage.setItem('flatnav_app_subtitle', json.config.appSubtitle);
+          }
+          if (json.config.appFontSize) {
+              setAppFontSize(json.config.appFontSize);
+              localStorage.setItem('flatnav_app_font_size', json.config.appFontSize);
+          }
+           if (json.config.theme) setTheme(json.config.theme);
+      }
+  };
+
+  const handleManualUpload = () => {
+      pushData(getDashboardData());
+  };
+
+  const handleManualDownload = async () => {
+      try {
+          const data = await pullData();
+          handleLoadDashboardData(data);
+          alert('数据恢复成功！页面将刷新...');
+          setTimeout(() => window.location.reload(), 1000);
+      } catch (e) {
+          console.error(e);
+          alert('恢复失败，请检查控制台或 Token 设置');
+      }
+  };
+
+  // --- Auto-Sync Effect ---
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+      // Skip initial render to avoid syncing default state over cloud state
+      if (isFirstRender.current) {
+          isFirstRender.current = false;
+          return;
+      }
+
+      if (autoSync && token) {
+          const timer = setTimeout(() => {
+              // Push changes silently (true = silent)
+              pushData(getDashboardData(), true);
+          }, 3000); // 3 seconds debounce
+
+          return () => clearTimeout(timer);
+      }
+  }, [bookmarks, categories, appName, appSubtitle, appFontSize, theme, autoSync, token, pushData]);
+
 
   // Initialize state and load data
   useEffect(() => {
@@ -94,25 +174,21 @@ const App: React.FC = () => {
     const lastAttemptDate = localStorage.getItem('flatnav_last_attempt_date');
     let attempts = parseInt(localStorage.getItem('flatnav_login_attempts') || '0', 10);
 
-    // Check date and reset attempts if it's a new day
     if (lastAttemptDate !== today) {
         attempts = 0;
         localStorage.setItem('flatnav_login_attempts', '0');
         localStorage.setItem('flatnav_last_attempt_date', today);
     }
 
-    // Check lock status
     if (attempts >= 3) {
         return { success: false, message: '安全警告：今日密码错误次数过多，本设备已禁止登录。请明日再试。' };
     }
 
     if (password === ADMIN_PASSWORD) {
       setIsAuthenticated(true);
-      // Reset attempts on success
       localStorage.setItem('flatnav_login_attempts', '0');
       return { success: true };
     } else {
-      // Increment failed attempts
       attempts += 1;
       localStorage.setItem('flatnav_login_attempts', attempts.toString());
       localStorage.setItem('flatnav_last_attempt_date', today);
@@ -127,49 +203,6 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setIsEditMode(false); 
-  };
-
-  // --- Data Export / Import Logic (Fix for cross-device sync) ---
-  const getDashboardData = () => {
-    return {
-      version: 1,
-      timestamp: new Date().toISOString(),
-      bookmarks,
-      categories,
-      config: {
-        appName,
-        appSubtitle,
-        appFontSize,
-        theme
-      }
-    };
-  };
-
-  const handleLoadDashboardData = (json: any) => {
-      if (json.bookmarks && Array.isArray(json.bookmarks)) {
-           setBookmarks(json.bookmarks);
-        }
-        if (json.categories && Array.isArray(json.categories)) {
-           setCategories(json.categories);
-        }
-        
-        if (json.config) {
-            if (json.config.appName) {
-                setAppName(json.config.appName);
-                localStorage.setItem('flatnav_app_name', json.config.appName);
-            }
-            if (json.config.appSubtitle) {
-                setAppSubtitle(json.config.appSubtitle);
-                localStorage.setItem('flatnav_app_subtitle', json.config.appSubtitle);
-            }
-            if (json.config.appFontSize) {
-                setAppFontSize(json.config.appFontSize);
-                localStorage.setItem('flatnav_app_font_size', json.config.appFontSize);
-            }
-             if (json.config.theme) {
-                setTheme(json.config.theme);
-            }
-        }
   };
 
   const handleExportData = () => {
@@ -195,7 +228,6 @@ const App: React.FC = () => {
         const json = JSON.parse(event.target?.result as string);
         handleLoadDashboardData(json);
         alert('数据导入成功！您的书签和设置已恢复。');
-        // Refresh to ensure all styles/components update if needed
         setTimeout(() => window.location.reload(), 500);
       } catch (err) {
         alert('导入失败：文件格式不正确');
@@ -203,7 +235,7 @@ const App: React.FC = () => {
       }
     };
     reader.readAsText(file);
-    e.target.value = ''; // Reset input
+    e.target.value = '';
   };
 
   const handleSaveBookmark = (newBookmarkData: Omit<Bookmark, 'id'>) => {
@@ -253,21 +285,16 @@ const App: React.FC = () => {
       localStorage.setItem('flatnav_app_subtitle', subtitle);
   };
 
-  // --- Navigation & Scrolling ---
-
   const scrollToCategory = (categoryId: string) => {
       setActiveCategoryId(categoryId);
       const element = document.getElementById(`category-${categoryId}`);
       if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      // On mobile, close sidebar after clicking
       if (window.innerWidth < 768) {
           setIsSidebarOpen(false);
       }
   };
-
-  // --- Drag and Drop Handlers ---
 
   const handleCategoryDragStart = (e: React.DragEvent, index: number) => {
       if (!isEditMode) return;
@@ -332,8 +359,6 @@ const App: React.FC = () => {
           setBookmarks(newBookmarks);
       }
   };
-
-  // --- Modals ---
 
   const openAddBookmarkModal = () => {
     setEditingBookmark(null);
@@ -417,9 +442,8 @@ const App: React.FC = () => {
             md:relative md:translate-x-0
         `}
       >
-          {/* Inner Container */}
           <div className="w-full h-full flex flex-col">
-            {/* Brand & Mobile Close */}
+            {/* Brand */}
             <div className="h-24 flex items-center justify-between px-6 shrink-0 relative">
                 <a 
                     href="/"
@@ -449,7 +473,6 @@ const App: React.FC = () => {
                         </span>
                     </div>
                 </a>
-                {/* Mobile Close Button */}
                 <button 
                     onClick={() => setIsSidebarOpen(false)}
                     className="md:hidden p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] transition-colors"
@@ -460,7 +483,6 @@ const App: React.FC = () => {
 
             {/* Navigation List */}
             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scrollbar-hide">
-                
                 <div className="px-4 mt-6 mb-4">
                     <div className="flex items-center gap-3 group">
                          <span className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] group-hover:text-[var(--accent-color)] transition-colors">
@@ -494,7 +516,6 @@ const App: React.FC = () => {
                     )
                 })}
 
-                {/* Add Category (Sidebar) */}
                 {isAuthenticated && (
                     <button 
                         onClick={openAddCategoryModal}
@@ -514,30 +535,23 @@ const App: React.FC = () => {
                     <button 
                         onClick={() => setTheme('light')}
                         className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all hover:scale-105 ${theme === 'light' ? 'bg-[var(--bg-card)] shadow-sm text-blue-600' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                        title="简约白"
                     >
                         <Sun size={16} />
-                        <span className="text-[10px] mt-1 font-medium">白</span>
                     </button>
                     <button 
                         onClick={() => setTheme('dark')}
                         className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all hover:scale-105 ${theme === 'dark' ? 'bg-[var(--bg-card)] shadow-sm text-blue-400' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                        title="简约黑"
                     >
                         <Moon size={16} />
-                        <span className="text-[10px] mt-1 font-medium">黑</span>
                     </button>
                     <button 
                         onClick={() => setTheme('cyberpunk')}
                         className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all hover:scale-105 ${theme === 'cyberpunk' ? 'bg-[var(--bg-card)] shadow-sm text-[#00ff9d]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                        title="赛博朋克"
                     >
                         <Zap size={16} />
-                        <span className="text-[10px] mt-1 font-medium">赛博</span>
                     </button>
                 </div>
 
-                {/* Edit Mode Toggle */}
                 {isAuthenticated && (
                     <button 
                         onClick={() => setIsEditMode(!isEditMode)}
@@ -556,12 +570,26 @@ const App: React.FC = () => {
                 {isAuthenticated ? (
                      <div className="flex flex-col gap-2 p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-[var(--accent-bg)] text-[var(--accent-color)] flex items-center justify-center">
+                            <div className="w-9 h-9 rounded-full bg-[var(--accent-bg)] text-[var(--accent-color)] flex items-center justify-center relative">
                                 <User size={18} />
+                                {/* Cloud Status Indicator */}
+                                {token && (
+                                    <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center ${
+                                        syncStatus.state === 'error' ? 'bg-red-500' :
+                                        syncStatus.state === 'loading' ? 'bg-blue-500 animate-pulse' :
+                                        syncStatus.state === 'success' ? 'bg-green-500' : 'bg-slate-300'
+                                    }`}>
+                                        <Cloud size={8} className="text-white" fill="currentColor"/>
+                                    </div>
+                                )}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs font-bold text-[var(--text-primary)] truncate">管理员</p>
-                                <p className="text-[10px] text-[var(--text-secondary)] truncate">已登录</p>
+                                <p className="text-[10px] text-[var(--text-secondary)] truncate">
+                                    {autoSync ? (
+                                        <span className="flex items-center gap-1 text-green-600"><RefreshCw size={8} className={syncStatus.state === 'loading' ? 'animate-spin' : ''}/> 自动同步开</span>
+                                    ) : '已登录'}
+                                </p>
                             </div>
                             <button 
                                 onClick={handleLogout}
@@ -572,23 +600,24 @@ const App: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Data Backup Controls */}
                         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[var(--border-color)] mt-1">
                              <button
                                 onClick={() => setIsSyncModalOpen(true)}
-                                className="col-span-2 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                                title="使用 GitHub Gist 同步数据"
+                                className={`col-span-2 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
+                                    syncStatus.state === 'error' ? 'bg-red-50 text-red-600' : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:bg-blue-50 hover:text-blue-600'
+                                }`}
+                                title="云端设置"
                             >
-                                <Cloud size={12} /> 云同步 (Gist)
+                                {syncStatus.state === 'error' ? <AlertCircle size={12}/> : <Cloud size={12} />} 
+                                {syncStatus.state === 'error' ? '同步出错' : '云同步设置'}
                             </button>
                              <button
                                 onClick={handleExportData}
                                 className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-blue-600 transition-colors"
-                                title="导出配置数据"
                             >
                                 <Download size={12} /> 备份
                             </button>
-                            <label className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-green-600 transition-colors cursor-pointer" title="导入配置数据">
+                            <label className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-green-600 transition-colors cursor-pointer">
                                 <Upload size={12} /> 恢复
                                 <input type="file" accept=".json" className="hidden" onChange={handleImportData} />
                             </label>
@@ -607,31 +636,22 @@ const App: React.FC = () => {
           </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="flex-1 h-full overflow-y-auto scroll-smooth relative z-0">
-        
-        {/* Sidebar Toggle Button - Visible on Desktop when open, Visible on Mobile when closed */}
         <div className={`sticky top-8 z-40 h-0 overflow-visible transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${isSidebarOpen ? 'md:-left-3 -left-20' : 'left-4 md:left-6'}`}>
              <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="bg-[var(--bg-card)] backdrop-blur-md border border-[var(--border-color)] p-2 rounded-full shadow-sm text-[var(--text-secondary)] hover:text-[var(--accent-color)] hover:shadow-md transition-all flex items-center justify-center hover:scale-110"
-                title={isSidebarOpen ? "收起侧边栏" : "展开侧边栏"}
              >
                 {isSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
              </button>
          </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 pb-32">
-            
-            {/* Top Widgets Row */}
             <DashboardWidgets />
-
-            {/* Search Area */}
             <div className="mb-10 sticky top-4 z-30">
                 <SearchBar />
             </div>
 
-            {/* Header Actions (Add Bookmark) */}
             {isAuthenticated && (
                 <div className="flex justify-end mb-6">
                      <button 
@@ -644,12 +664,11 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {/* Category List - Vertical Stack */}
             <div className="flex flex-col gap-6">
                 {categories.map((category, index) => (
                     <div
                         key={category.id}
-                        id={`category-${category.id}`} // ID for scrolling
+                        id={`category-${category.id}`}
                         draggable={isEditMode}
                         onDragStart={(e) => handleCategoryDragStart(e, index)}
                         onDragOver={handleCategoryDragOver}
@@ -673,7 +692,6 @@ const App: React.FC = () => {
                     </div>
                 ))}
 
-                {/* Empty State if no categories */}
                 {categories.length === 0 && (
                     <div className="text-center py-20 border-2 border-dashed border-[var(--border-color)] rounded-3xl bg-[var(--bg-card)]/50 backdrop-blur-sm">
                         <FolderPlus size={48} className="mx-auto text-[var(--text-secondary)] mb-4" />
@@ -700,7 +718,6 @@ const App: React.FC = () => {
         categories={categories}
         initialData={editingBookmark}
       />
-
       <CategoryModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
@@ -708,13 +725,11 @@ const App: React.FC = () => {
         onDelete={handleDeleteCategory} 
         initialData={editingCategory}
       />
-
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onLogin={handleLogin}
       />
-      
       <SiteConfigModal
         isOpen={isSiteConfigModalOpen}
         onClose={() => setIsSiteConfigModalOpen(false)}
@@ -723,12 +738,17 @@ const App: React.FC = () => {
         initialFontSize={appFontSize}
         initialSubtitle={appSubtitle}
       />
-
       <SyncModal
         isOpen={isSyncModalOpen}
         onClose={() => setIsSyncModalOpen(false)}
-        getData={getDashboardData}
-        onDataSync={handleLoadDashboardData}
+        token={token}
+        setToken={setToken}
+        autoSync={autoSync}
+        setAutoSync={setAutoSync}
+        status={syncStatus}
+        lastSuccessTime={lastSuccessTime}
+        onUpload={handleManualUpload}
+        onDownload={handleManualDownload}
       />
     </div>
   );
