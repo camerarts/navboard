@@ -2,6 +2,9 @@ import React from 'react';
 import { Category, Bookmark, SearchEngine } from './types';
 import { Search, Globe, Code, Coffee, Briefcase, ShoppingCart } from 'lucide-react';
 
+// 您可以在此处填入 GitHub Token 以免去手动输入的麻烦
+export const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+
 export const INITIAL_CATEGORIES: Category[] = [
   { id: '1', name: '日常办公', color: 'bg-blue-500' },
   { id: '2', name: '开发工具', color: 'bg-emerald-500' },
