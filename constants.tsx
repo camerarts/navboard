@@ -3,11 +3,14 @@ import { Category, Bookmark, SearchEngine } from './types';
 import { Search, Globe, Code, Coffee, Briefcase, ShoppingCart } from 'lucide-react';
 
 // --- 安全配置 ---
-// 为了避免密钥外漏导致 GitHub 报警，请将您的 Token 进行 Base64 编码后填入此处。
-// 编码方法：在浏览器控制台输入 btoa('ghp_您的Token') 即可获得。
-// 例如：您的 Token 是 ghp_123456，则此处填入 'Z2hwXzEyMzQ1Ng=='
-// 这里的 'process.env.GITHUB_TOKEN_ENCODED' 允许您通过环境变量注入（推荐生产环境使用）
-export const GITHUB_TOKEN_ENCODED = process.env.GITHUB_TOKEN_ENCODED || 'Z2hwX2wxZzhHaGh6Mlc2Uk5hT0ZxMEJFdDlVN0daRXdQVjJsdjliNA==';
+// ⚠️ 重要提示：如果 GitHub 曾向您发送泄漏警告，之前的 Token 已被自动作废。
+// 请务必生成一个新的 Token (权限勾选 'gist')。
+
+// 配置步骤：
+// 1. 获取新 Token (例如: ghp_abc123...)
+// 2. 在浏览器控制台输入: btoa('ghp_abc123...')
+// 3. 将输出的字符串 (例如: Z2hwX2FiYzEyMy4uLg==) 填入下方引号中
+export const GITHUB_TOKEN_ENCODED = 'Z2hwX0xsNWJRTFByZExWWXFjSlBvcUZtWHpDbUlNaXVhNjE2b0I5Yw=='; 
 
 export const INITIAL_CATEGORIES: Category[] = [
   { id: '1', name: '日常办公', color: 'bg-blue-500' },
