@@ -18,6 +18,27 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
   const [isChecking, setIsChecking] = useState(false);
   const [needsTokenConfig, setNeedsTokenConfig] = useState(false);
 
+  // Helper to clean token
+  const cleanToken = (t: string) => t.trim().replace(/^Bearer\s+/i, '').replace(/[\r\n\s]/g, '');
+
+  const handleError = (err: any) => {
+      console.error(err);
+      let msg = err.message || '未知错误';
+      
+      if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('Network request failed')) {
+          msg = '网络连接失败 (Failed to fetch)。请检查网络连接是否正常，或尝试使用 VPN 访问 GitHub API。';
+      } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('bad credentials')) {
+          msg = 'Token 无效或过期 (401)。请重新配置 Token。';
+      } else if (msg.includes('403')) {
+          msg = '访问被拒绝 (403)。Token 权限不足或 API 限流。';
+      } else if (msg.includes('404')) {
+          msg = '未找到资源 (404)。';
+      }
+
+      setStatus({ type: 'error', msg });
+      setIsChecking(false);
+  };
+
   // useCallback for checkForBackup to be stable for useEffect
   const checkForBackup = useCallback(async (authToken: string) => {
     if (!authToken) return;
@@ -62,7 +83,10 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
 
   useEffect(() => {
     if (isOpen) {
-      const storedToken = localStorage.getItem('flatnav_github_token') || '';
+      let storedToken = localStorage.getItem('flatnav_github_token') || '';
+      // Sanitize stored token to prevent errors from legacy dirty tokens
+      storedToken = cleanToken(storedToken);
+
       const storedGistId = localStorage.getItem('flatnav_gist_id') || '';
       
       setToken(storedToken);
@@ -78,27 +102,8 @@ const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, getData, onDataS
     }
   }, [isOpen, checkForBackup]);
 
-  const handleError = (err: any) => {
-      console.error(err);
-      let msg = err.message || '未知错误';
-      
-      if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('Network request failed')) {
-          msg = '网络连接失败 (Failed to fetch)。请检查网络/VPN，或确认 Token 格式正确。';
-      } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
-          msg = 'Token 无效或过期 (401)。请重新配置 Token。';
-      } else if (msg.includes('403')) {
-          msg = '访问被拒绝 (403)。Token 权限不足或 API 限流。';
-      } else if (msg.includes('404')) {
-          msg = '未找到资源 (404)。';
-      }
-
-      setStatus({ type: 'error', msg });
-      setIsChecking(false);
-  };
-
   const saveToken = (newToken: string) => {
-      // Clean token: remove "Bearer " prefix, spaces, newlines, control chars
-      const cleanedToken = newToken.trim().replace(/^Bearer\s+/i, '').replace(/[\r\n\s]/g, '');
+      const cleanedToken = cleanToken(newToken);
       setToken(cleanedToken);
       localStorage.setItem('flatnav_github_token', cleanedToken);
       if (cleanedToken) {
