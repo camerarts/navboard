@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { GITHUB_TOKEN } from '../constants';
 
 const GIST_FILENAME = 'flatnav_backup.json';
 
@@ -9,20 +10,36 @@ export interface SyncStatus {
 }
 
 export const useGitHubSync = () => {
-    const [token, setTokenState] = useState('');
-    const [gistId, setGistIdState] = useState('');
-    const [autoSync, setAutoSyncState] = useState(false);
-    const [status, setStatus] = useState<SyncStatus>({ state: 'idle', message: '就绪' });
-    const [lastSuccessTime, setLastSuccessTime] = useState<string>('');
+    // Lazy initialization for immediate availability
+    const [token, setTokenState] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('flatnav_github_token') || GITHUB_TOKEN || '';
+        }
+        return GITHUB_TOKEN || '';
+    });
 
-    // Load initial settings from LocalStorage
-    useEffect(() => {
-        setTokenState(localStorage.getItem('flatnav_github_token') || '');
-        setGistIdState(localStorage.getItem('flatnav_gist_id') || '');
-        setAutoSyncState(localStorage.getItem('flatnav_auto_sync') === 'true');
-        const storedTime = localStorage.getItem('flatnav_last_sync_time');
-        if (storedTime) setLastSuccessTime(storedTime);
-    }, []);
+    const [gistId, setGistIdState] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('flatnav_gist_id') || '';
+        }
+        return '';
+    });
+
+    const [autoSync, setAutoSyncState] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('flatnav_auto_sync') === 'true';
+        }
+        return false;
+    });
+
+    const [status, setStatus] = useState<SyncStatus>({ state: 'idle', message: '就绪' });
+    
+    const [lastSuccessTime, setLastSuccessTime] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('flatnav_last_sync_time') || '';
+        }
+        return '';
+    });
 
     const setToken = (newToken: string) => {
         const clean = newToken.trim().replace(/^Bearer\s+/i, '');
@@ -139,6 +156,8 @@ export const useGitHubSync = () => {
             }
 
             if (!targetId) {
+                // If no Gist found, we can't pull. But maybe we don't treat it as a hard error if it's an auto-pull on fresh start?
+                // For now, let's just return null or throw.
                 throw new Error('云端未找到备份文件');
             }
 
