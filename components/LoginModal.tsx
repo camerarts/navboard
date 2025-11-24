@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
-import { X, Lock, Key, AlertCircle } from 'lucide-react';
+import { X, Lock, AlertCircle, Ban } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (password: string) => { success: boolean; message?: string };
-  isFirstTime: boolean;
 }
 
-const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin, isFirstTime }) => {
+const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => {
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
@@ -19,21 +17,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin, isFir
     e.preventDefault();
     setError('');
 
-    if (isFirstTime) {
-      if (password !== confirmPassword) {
-        setError('两次输入的密码不一致');
-        return;
-      }
-      if (password.length < 4) {
-        setError('密码至少需要4个字符');
-        return;
-      }
-    }
-
     const result = onLogin(password);
     if (result.success) {
       setPassword('');
-      setConfirmPassword('');
       setError('');
       onClose();
     } else {
@@ -41,15 +27,16 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin, isFir
     }
   };
 
-  const isLocked = error.includes('锁定') || error.includes('禁止');
+  // Check if the error message implies a lockout
+  const isLocked = error.includes('禁止') || error.includes('锁定');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
         <div className="flex justify-between items-center p-5 border-b border-slate-100">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-            {isFirstTime ? <Key size={20} className="text-blue-500" /> : <Lock size={20} className="text-blue-500" />}
-            {isFirstTime ? '设置管理员密码' : '管理员登录'}
+            {isLocked ? <Ban size={20} className="text-red-500" /> : <Lock size={20} className="text-blue-500" />}
+            {isLocked ? '账号锁定' : '管理员登录'}
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition">
             <X size={20} />
@@ -57,12 +44,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin, isFir
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {isFirstTime && (
-             <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm mb-4">
-               首次使用请设置一个管理员密码，用于后续管理书签。
-             </div>
-          )}
-
           <div>
             <input
               required
@@ -70,24 +51,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin, isFir
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLocked}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:bg-slate-100 disabled:text-slate-400"
-              placeholder={isFirstTime ? "输入新密码" : "输入管理员密码"}
-              autoFocus
+              className={`w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+              placeholder={isLocked ? "已禁止输入" : "输入管理员密码"}
+              autoFocus={!isLocked}
             />
           </div>
-
-          {isFirstTime && (
-            <div>
-              <input
-                required
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                placeholder="确认新密码"
-              />
-            </div>
-          )}
 
           {error && (
             <div className={`flex items-start gap-2 text-sm p-3 rounded-lg ${isLocked ? 'bg-red-100 text-red-700' : 'bg-red-50 text-red-600'}`}>
@@ -105,7 +73,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin, isFir
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
-            {isLocked ? '已锁定' : (isFirstTime ? '设置并登录' : '登录')}
+            {isLocked ? '明日再试' : '登录'}
           </button>
         </form>
       </div>
