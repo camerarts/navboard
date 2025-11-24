@@ -106,7 +106,7 @@ const App: React.FC = () => {
       }
   };
 
-  // --- Auto-Sync Effect ---
+  // --- Auto-Sync PUSH Effect ---
   const isFirstRender = useRef(true);
   useEffect(() => {
       // Skip initial render to avoid syncing default state over cloud state
@@ -125,6 +125,29 @@ const App: React.FC = () => {
       }
   }, [bookmarks, categories, appName, appSubtitle, appFontSize, theme, autoSync, token, pushData]);
 
+  // --- Auto-Sync PULL Effect (On Mount) ---
+  useEffect(() => {
+    const initCloudData = async () => {
+        if (token) {
+            try {
+                // Try to pull data immediately on load if token is available
+                const data = await pullData();
+                if (data) {
+                    handleLoadDashboardData(data);
+                    console.log('Successfully synced from cloud on startup');
+                }
+            } catch (e: any) {
+                // If it's a 404/not found, it might just mean no backup exists yet.
+                // Don't alert the user, just log it.
+                console.warn('Auto-pull on startup:', e.message);
+            }
+        }
+    };
+    
+    initCloudData();
+  }, []); // Run only on mount. Deps can be empty because token is lazy-initialized and stable in closure context relative to this effect? 
+  // Actually, to be safe, if we use lazy init in hook, token is ready.
+  // We exclude deps to ensure it ONLY runs on mount.
 
   // Initialize state and load data
   useEffect(() => {
