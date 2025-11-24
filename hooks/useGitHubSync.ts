@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { GITHUB_TOKEN } from '../constants';
+import { GITHUB_TOKEN_ENCODED } from '../constants';
 
 const GIST_FILENAME = 'flatnav_backup.json';
 
@@ -9,13 +9,32 @@ export interface SyncStatus {
     lastSynced?: string;
 }
 
-export const useGitHubSync = () => {
-    // Lazy initialization for immediate availability
-    const [token, setTokenState] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('flatnav_github_token') || GITHUB_TOKEN || '';
+// 辅助函数：安全解码 Token
+const getDecodedToken = () => {
+    if (!GITHUB_TOKEN_ENCODED) return '';
+    try {
+        // 如果用户不小心填入了明文（以 ghp_ 开头），直接返回，避免解码报错
+        if (GITHUB_TOKEN_ENCODED.startsWith('ghp_') || GITHUB_TOKEN_ENCODED.startsWith('github_pat_')) {
+            return GITHUB_TOKEN_ENCODED;
         }
-        return GITHUB_TOKEN || '';
+        // 进行 Base64 解码
+        return atob(GITHUB_TOKEN_ENCODED);
+    } catch (e) {
+        console.warn('GitHub Token 解码失败，请检查是否为有效的 Base64 字符串');
+        return '';
+    }
+};
+
+export const useGitHubSync = () => {
+    // 惰性初始化：优先读取代码中硬编码的 Token (解码后)，其次是本地存储
+    const [token, setTokenState] = useState(() => {
+        const hardcoded = getDecodedToken();
+        if (typeof window !== 'undefined') {
+            // 如果代码中有硬编码，优先使用硬编码，这能解决“刷新后失效”的问题
+            if (hardcoded) return hardcoded;
+            return localStorage.getItem('flatnav_github_token') || '';
+        }
+        return hardcoded || '';
     });
 
     const [gistId, setGistIdState] = useState(() => {
@@ -44,8 +63,8 @@ export const useGitHubSync = () => {
     const setToken = (newToken: string) => {
         const clean = newToken.trim().replace(/^Bearer\s+/i, '');
         setTokenState(clean);
+        // 如果用户手动输入，我们保存到本地
         localStorage.setItem('flatnav_github_token', clean);
-        // Reset status when token changes
         if (clean) setStatus({ state: 'idle', message: 'Token 已更新' });
     };
 
@@ -66,6 +85,7 @@ export const useGitHubSync = () => {
             if (!res.ok) return null;
             const gists = await res.json();
             if (Array.isArray(gists)) {
+                // 查找包含我们特定文件名的 Gist
                 const found = gists.find((g: any) => g.files && g.files[GIST_FILENAME]);
                 return found ? found.id : null;
             }
@@ -156,9 +176,10 @@ export const useGitHubSync = () => {
             }
 
             if (!targetId) {
-                // If no Gist found, we can't pull. But maybe we don't treat it as a hard error if it's an auto-pull on fresh start?
-                // For now, let's just return null or throw.
-                throw new Error('云端未找到备份文件');
+                // 如果没有找到 Gist，这可能是一个新账号，不应该报错，而是返回空以便前端处理
+                console.log('No backup gist found.');
+                setStatus({ state: 'success', message: '无云端备份' });
+                return null;
             }
 
             // Save ID if we found it
@@ -167,6 +188,7 @@ export const useGitHubSync = () => {
                 localStorage.setItem('flatnav_gist_id', targetId);
             }
 
+            // 添加时间戳防止缓存
             const res = await fetch(`https://api.github.com/gists/${targetId}?t=${Date.now()}`, {
                 headers: { 
                     'Authorization': `Bearer ${token}`,
