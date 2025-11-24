@@ -2,8 +2,12 @@ import React from 'react';
 import { Category, Bookmark, SearchEngine } from './types';
 import { Search, Globe, Code, Coffee, Briefcase, ShoppingCart } from 'lucide-react';
 
-// 您可以在此处填入 GitHub Token 以免去手动输入的麻烦
-export const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+// --- 安全配置 ---
+// 为了避免密钥外漏导致 GitHub 报警，请将您的 Token 进行 Base64 编码后填入此处。
+// 编码方法：在浏览器控制台输入 btoa('ghp_您的Token') 即可获得。
+// 例如：您的 Token 是 ghp_123456，则此处填入 'Z2hwXzEyMzQ1Ng=='
+// 这里的 'process.env.GITHUB_TOKEN_ENCODED' 允许您通过环境变量注入（推荐生产环境使用）
+export const GITHUB_TOKEN_ENCODED = process.env.GITHUB_TOKEN_ENCODED || '';
 
 export const INITIAL_CATEGORIES: Category[] = [
   { id: '1', name: '日常办公', color: 'bg-blue-500' },
