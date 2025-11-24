@@ -7,7 +7,7 @@ import { Search, Globe, Code, Coffee, Briefcase, ShoppingCart } from 'lucide-rea
 // 编码方法：在浏览器控制台输入 btoa('ghp_您的Token') 即可获得。
 // 例如：您的 Token 是 ghp_123456，则此处填入 'Z2hwXzEyMzQ1Ng=='
 // 这里的 'process.env.GITHUB_TOKEN_ENCODED' 允许您通过环境变量注入（推荐生产环境使用）
-export const GITHUB_TOKEN_ENCODED = process.env.GITHUB_TOKEN_ENCODED || '';
+export const GITHUB_TOKEN_ENCODED = process.env.GITHUB_TOKEN_ENCODED || 'Z2hwX2wxZzhHaGh6Mlc2Uk5hT0ZxMEJFdDlVN0daRXdQVjJsdjliNA==';
 
 export const INITIAL_CATEGORIES: Category[] = [
   { id: '1', name: '日常办公', color: 'bg-blue-500' },
