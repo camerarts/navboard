@@ -18,7 +18,6 @@ const App: React.FC = () => {
   
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [hasPassword, setHasPassword] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // UI State
@@ -52,7 +51,6 @@ const App: React.FC = () => {
 
     const storedBookmarks = localStorage.getItem('flatnav_bookmarks');
     const storedCategories = localStorage.getItem('flatnav_categories');
-    const storedPassword = localStorage.getItem('flatnav_password'); 
     const storedTheme = localStorage.getItem('flatnav_theme') as ThemeType;
     const storedAppName = localStorage.getItem('flatnav_app_name');
     const storedAppFontSize = localStorage.getItem('flatnav_app_font_size');
@@ -67,10 +65,6 @@ const App: React.FC = () => {
         if (INITIAL_CATEGORIES.length > 0) setActiveCategoryId(INITIAL_CATEGORIES[0].id);
     }
     
-    if (storedPassword) {
-      setHasPassword(true);
-    }
-
     if (storedTheme) {
         setTheme(storedTheme);
     }
@@ -92,6 +86,7 @@ const App: React.FC = () => {
   }, [theme]);
 
   const handleLogin = (password: string): { success: boolean; message?: string } => {
+    const ADMIN_PASSWORD = '1211';
     const today = new Date().toLocaleDateString();
     const lastAttemptDate = localStorage.getItem('flatnav_last_attempt_date');
     let attempts = parseInt(localStorage.getItem('flatnav_login_attempts') || '0', 10);
@@ -103,38 +98,26 @@ const App: React.FC = () => {
         localStorage.setItem('flatnav_last_attempt_date', today);
     }
 
-    // Check lock status (only if password already exists)
-    if (hasPassword && attempts >= 3) {
+    // Check lock status
+    if (attempts >= 3) {
         return { success: false, message: '安全警告：今日密码错误次数过多，本设备已禁止登录。请明日再试。' };
     }
 
-    if (!hasPassword) {
-      // First time setup
-      localStorage.setItem('flatnav_password', password);
-      setHasPassword(true);
+    if (password === ADMIN_PASSWORD) {
       setIsAuthenticated(true);
-      // Ensure clean slate
+      // Reset attempts on success
       localStorage.setItem('flatnav_login_attempts', '0');
-      localStorage.setItem('flatnav_last_attempt_date', today);
       return { success: true };
     } else {
-      const stored = localStorage.getItem('flatnav_password');
-      if (password === stored) {
-        setIsAuthenticated(true);
-        // Reset attempts on success
-        localStorage.setItem('flatnav_login_attempts', '0');
-        return { success: true };
-      } else {
-        // Increment failed attempts
-        attempts += 1;
-        localStorage.setItem('flatnav_login_attempts', attempts.toString());
-        localStorage.setItem('flatnav_last_attempt_date', today);
-        
-        if (attempts >= 3) {
-             return { success: false, message: '安全警告：今日密码错误次数过多，本设备已禁止登录。请明日再试。' };
-        }
-        return { success: false, message: `密码错误。今日剩余尝试次数：${3 - attempts}` };
+      // Increment failed attempts
+      attempts += 1;
+      localStorage.setItem('flatnav_login_attempts', attempts.toString());
+      localStorage.setItem('flatnav_last_attempt_date', today);
+      
+      if (attempts >= 3) {
+           return { success: false, message: '安全警告：今日密码错误次数过多，本设备已禁止登录。请明日再试。' };
       }
+      return { success: false, message: `密码错误。今日剩余尝试次数：${3 - attempts}` };
     }
   };
 
@@ -626,7 +609,6 @@ const App: React.FC = () => {
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onLogin={handleLogin}
-        isFirstTime={!hasPassword}
       />
       
       <SiteConfigModal
