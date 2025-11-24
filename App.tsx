@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2 } from 'lucide-react';
+import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Download, Upload, Cloud } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -7,6 +7,7 @@ import CategoryModal from './components/CategoryModal';
 import LoginModal from './components/LoginModal';
 import SiteConfigModal from './components/SiteConfigModal';
 import DashboardWidgets from './components/DashboardWidgets';
+import SyncModal from './components/SyncModal';
 import { Bookmark, Category } from './types';
 import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES, CATEGORY_ICONS } from './constants';
 
@@ -26,6 +27,8 @@ const App: React.FC = () => {
   const [isBookmarkModalOpen, setIsBookmarkModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSiteConfigModalOpen, setIsSiteConfigModalOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   
@@ -124,6 +127,83 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setIsEditMode(false); 
+  };
+
+  // --- Data Export / Import Logic (Fix for cross-device sync) ---
+  const getDashboardData = () => {
+    return {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      bookmarks,
+      categories,
+      config: {
+        appName,
+        appSubtitle,
+        appFontSize,
+        theme
+      }
+    };
+  };
+
+  const handleLoadDashboardData = (json: any) => {
+      if (json.bookmarks && Array.isArray(json.bookmarks)) {
+           setBookmarks(json.bookmarks);
+        }
+        if (json.categories && Array.isArray(json.categories)) {
+           setCategories(json.categories);
+        }
+        
+        if (json.config) {
+            if (json.config.appName) {
+                setAppName(json.config.appName);
+                localStorage.setItem('flatnav_app_name', json.config.appName);
+            }
+            if (json.config.appSubtitle) {
+                setAppSubtitle(json.config.appSubtitle);
+                localStorage.setItem('flatnav_app_subtitle', json.config.appSubtitle);
+            }
+            if (json.config.appFontSize) {
+                setAppFontSize(json.config.appFontSize);
+                localStorage.setItem('flatnav_app_font_size', json.config.appFontSize);
+            }
+             if (json.config.theme) {
+                setTheme(json.config.theme);
+            }
+        }
+  };
+
+  const handleExportData = () => {
+    const data = getDashboardData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `flatnav-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        handleLoadDashboardData(json);
+        alert('数据导入成功！您的书签和设置已恢复。');
+        // Refresh to ensure all styles/components update if needed
+        setTimeout(() => window.location.reload(), 500);
+      } catch (err) {
+        alert('导入失败：文件格式不正确');
+        console.error(err);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset input
   };
 
   const handleSaveBookmark = (newBookmarkData: Omit<Bookmark, 'id'>) => {
@@ -474,21 +554,45 @@ const App: React.FC = () => {
 
                 {/* User / Auth */}
                 {isAuthenticated ? (
-                    <div className="flex items-center gap-3 p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm hover:shadow-md transition-shadow">
-                        <div className="w-9 h-9 rounded-full bg-[var(--accent-bg)] text-[var(--accent-color)] flex items-center justify-center">
-                            <User size={18} />
+                     <div className="flex flex-col gap-2 p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-[var(--accent-bg)] text-[var(--accent-color)] flex items-center justify-center">
+                                <User size={18} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-[var(--text-primary)] truncate">管理员</p>
+                                <p className="text-[10px] text-[var(--text-secondary)] truncate">已登录</p>
+                            </div>
+                            <button 
+                                onClick={handleLogout}
+                                className="p-1.5 text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="退出登录"
+                            >
+                                <LogOut size={16} />
+                            </button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-[var(--text-primary)] truncate">管理员</p>
-                            <p className="text-[10px] text-[var(--text-secondary)] truncate">已登录</p>
+
+                        {/* Data Backup Controls */}
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[var(--border-color)] mt-1">
+                             <button
+                                onClick={() => setIsSyncModalOpen(true)}
+                                className="col-span-2 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                                title="使用 GitHub Gist 同步数据"
+                            >
+                                <Cloud size={12} /> 云同步 (Gist)
+                            </button>
+                             <button
+                                onClick={handleExportData}
+                                className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-blue-600 transition-colors"
+                                title="导出配置数据"
+                            >
+                                <Download size={12} /> 备份
+                            </button>
+                            <label className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-green-600 transition-colors cursor-pointer" title="导入配置数据">
+                                <Upload size={12} /> 恢复
+                                <input type="file" accept=".json" className="hidden" onChange={handleImportData} />
+                            </label>
                         </div>
-                        <button 
-                            onClick={handleLogout}
-                            className="p-1.5 text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors hover:scale-110"
-                            title="退出登录"
-                        >
-                            <LogOut size={16} />
-                        </button>
                     </div>
                 ) : (
                     <button 
@@ -618,6 +722,13 @@ const App: React.FC = () => {
         initialName={appName}
         initialFontSize={appFontSize}
         initialSubtitle={appSubtitle}
+      />
+
+      <SyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        getData={getDashboardData}
+        onDataSync={handleLoadDashboardData}
       />
     </div>
   );
