@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bookmark, Category } from '../types';
 import { ExternalLink, Trash2, Edit2, GripVertical } from 'lucide-react';
 import { CATEGORY_ICONS } from '../constants';
+import BookmarkIcon from './BookmarkIcon';
 
 interface CategoryGroupProps {
   category: Category;
@@ -183,12 +184,10 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
               }`}
             >
               <div className="relative shrink-0">
-                <img 
-                    src={`https://www.google.com/s2/favicons?domain=${bookmark.url}&sz=32`} 
-                    alt="" 
-                    className="w-6 h-6 rounded-md object-cover shadow-sm group-hover:shadow-md transition-shadow"
-                    loading="lazy"
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/20/20'; }}
+                <BookmarkIcon 
+                    url={bookmark.url} 
+                    title={bookmark.title}
+                    className="w-6 h-6 rounded-md shadow-sm group-hover:shadow-md transition-shadow"
                 />
               </div>
               
