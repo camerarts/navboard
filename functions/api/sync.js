@@ -1,8 +1,15 @@
 
 export async function onRequestGet(context) {
   try {
+    // Safety check: Ensure KV binding exists
+    if (!context.env.FLATNAV_KV) {
+       return new Response(JSON.stringify({ error: "KV Binding 'FLATNAV_KV' not found. Please bind it in Cloudflare Pages settings." }), { 
+           status: 503,
+           headers: { "Content-Type": "application/json" }
+       });
+    }
+
     // 从绑定的 KV 命名空间中读取数据
-    // 注意：需要在 Cloudflare Pages 设置中将 KV 绑定为变量名 "FLATNAV_KV"
     const data = await context.env.FLATNAV_KV.get("dashboard_data");
     
     if (!data) {
@@ -21,6 +28,11 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   try {
+    // Safety check: Ensure KV binding exists
+    if (!context.env.FLATNAV_KV) {
+       return new Response(JSON.stringify({ error: "KV Binding 'FLATNAV_KV' not found." }), { status: 503 });
+    }
+
     const request = context.request;
     const body = await request.json();
     
