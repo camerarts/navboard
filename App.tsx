@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Download, Upload, Cloud, RefreshCw, AlertCircle } from 'lucide-react';
+import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Download, Upload, Cloud, RefreshCw, AlertCircle, Save } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -8,14 +8,14 @@ import CategoryModal from './components/CategoryModal';
 import LoginModal from './components/LoginModal';
 import SiteConfigModal from './components/SiteConfigModal';
 import DashboardWidgets from './components/DashboardWidgets';
-import SyncModal from './components/SyncModal';
-import { useGitHubSync } from './hooks/useGitHubSync';
 import { Bookmark, Category } from './types';
 import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES, CATEGORY_ICONS } from './constants';
 
 type ThemeType = 'light' | 'dark' | 'cyberpunk';
+type SyncState = 'idle' | 'syncing' | 'saved' | 'error';
 
 const App: React.FC = () => {
+  // --- State ---
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(INITIAL_BOOKMARKS);
   
@@ -29,7 +29,6 @@ const App: React.FC = () => {
   const [isBookmarkModalOpen, setIsBookmarkModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSiteConfigModalOpen, setIsSiteConfigModalOpen] = useState(false);
-  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -48,170 +47,157 @@ const App: React.FC = () => {
   const [appFontSize, setAppFontSize] = useState('text-xl');
   const [appSubtitle, setAppSubtitle] = useState('Dashboard');
 
-  // --- GitHub Sync Hook Integration ---
-  const { 
-    token, setToken, autoSync, setAutoSync, status: syncStatus, lastSuccessTime, pushData, pullData 
-  } = useGitHubSync();
+  // Cloudflare KV Sync State
+  const [syncState, setSyncState] = useState<SyncState>('idle');
+  const isFirstLoad = useRef(true);
 
-  // --- Data Getter for Sync ---
-  const getDashboardData = () => {
-    return {
-      version: 1,
-      timestamp: new Date().toISOString(),
-      bookmarks,
-      categories,
-      config: {
-        appName,
-        appSubtitle,
-        appFontSize,
-        theme
-      }
-    };
-  };
-
-  // --- Data Restoration ---
-  const handleLoadDashboardData = (json: any) => {
-      if (json.bookmarks && Array.isArray(json.bookmarks)) setBookmarks(json.bookmarks);
-      if (json.categories && Array.isArray(json.categories)) {
-          setCategories(json.categories);
-          // If current active category is invalid, reset it
-          if (activeCategoryId && !json.categories.find((c: Category) => c.id === activeCategoryId)) {
-               if (json.categories.length > 0) setActiveCategoryId(json.categories[0].id);
-          }
-      }
-      
-      if (json.config) {
-          if (json.config.appName) {
-              setAppName(json.config.appName);
-              localStorage.setItem('flatnav_app_name', json.config.appName);
-          }
-          if (json.config.appSubtitle) {
-              setAppSubtitle(json.config.appSubtitle);
-              localStorage.setItem('flatnav_app_subtitle', json.config.appSubtitle);
-          }
-          if (json.config.appFontSize) {
-              setAppFontSize(json.config.appFontSize);
-              localStorage.setItem('flatnav_app_font_size', json.config.appFontSize);
-          }
-           if (json.config.theme) setTheme(json.config.theme);
-      }
-  };
-
-  const handleManualUpload = () => {
-      pushData(getDashboardData());
-  };
-
-  const handleManualDownload = async () => {
+  // --- Helper: Local Storage Fallback ---
+  const loadFromLocalStorage = () => {
       try {
-          const data = await pullData();
-          if (data) {
-              handleLoadDashboardData(data);
-              alert('数据恢复成功！页面将刷新以应用所有更改。');
-              setTimeout(() => window.location.reload(), 500);
-          }
+        const localBookmarks = localStorage.getItem('flatnav_bookmarks');
+        const localCategories = localStorage.getItem('flatnav_categories');
+        const localConfig = localStorage.getItem('flatnav_config');
+        
+        if (localBookmarks) setBookmarks(JSON.parse(localBookmarks));
+        if (localCategories) setCategories(JSON.parse(localCategories));
+        if (localConfig) {
+            const config = JSON.parse(localConfig);
+            setAppName(config.appName || 'FlatNav');
+            setAppSubtitle(config.appSubtitle || 'Dashboard');
+            setAppFontSize(config.appFontSize || 'text-xl');
+            setTheme(config.theme || 'light');
+        }
       } catch (e) {
-          console.error(e);
-          alert('恢复失败，请检查控制台或 Token 设置');
+          console.error("Local storage load error", e);
       }
   };
 
-  // --- Auto-Sync PUSH Effect ---
-  const isFirstRender = useRef(true);
-  useEffect(() => {
-      // Skip initial render to avoid syncing default state over cloud state
-      if (isFirstRender.current) {
-          isFirstRender.current = false;
-          return;
+  const saveToLocalStorage = (data: any) => {
+      try {
+        localStorage.setItem('flatnav_bookmarks', JSON.stringify(data.bookmarks));
+        localStorage.setItem('flatnav_categories', JSON.stringify(data.categories));
+        localStorage.setItem('flatnav_config', JSON.stringify(data.config));
+      } catch (e) {
+          console.error("Local storage save error", e);
       }
+  };
 
-      // Only push if autoSync is enabled AND we have a token AND the data is loaded (not empty default overriding cloud)
-      if (autoSync && token) {
-          const timer = setTimeout(() => {
-              // Push changes silently (true = silent)
-              pushData(getDashboardData(), true);
-          }, 3000); // 3 seconds debounce
+  // --- API Functions ---
 
-          return () => clearTimeout(timer);
+  const loadDataFromKV = async () => {
+      setSyncState('syncing');
+      try {
+          const res = await fetch('/api/sync');
+          if (res.ok) {
+              const data = await res.json();
+              if (!data.empty && data.bookmarks) {
+                  setBookmarks(data.bookmarks);
+                  setCategories(data.categories);
+                  if (data.config) {
+                      setAppName(data.config.appName || 'FlatNav');
+                      setAppSubtitle(data.config.appSubtitle || 'Dashboard');
+                      setAppFontSize(data.config.appFontSize || 'text-xl');
+                      setTheme(data.config.theme || 'light');
+                  }
+                  console.log('已从 Cloudflare KV 加载最新数据');
+                  setSyncState('idle');
+                  // Update local cache
+                  saveToLocalStorage({ bookmarks: data.bookmarks, categories: data.categories, config: data.config });
+              } else {
+                  console.log('KV 为空，尝试加载本地缓存');
+                  loadFromLocalStorage();
+                  setSyncState('idle');
+              }
+          } else {
+              throw new Error(`Server returned ${res.status}`);
+          }
+      } catch (error) {
+          console.warn('KV 连接失败，切换至本地模式:', error);
+          loadFromLocalStorage();
+          setSyncState('error'); // Indicates "Local Mode"
       }
-  }, [bookmarks, categories, appName, appSubtitle, appFontSize, theme, autoSync, token, pushData]);
+  };
 
-  // --- Auto-Sync PULL Effect (On Mount) ---
-  useEffect(() => {
-    // 定义一个异步函数来处理初始数据加载
-    const initCloudData = async () => {
-        // 只有当 Token 存在时才尝试同步（Token 可能来自 constants 硬编码或 localStorage）
-        if (token) {
-            try {
-                console.log('Auto-sync: Checking for cloud updates...');
-                const data = await pullData();
-                if (data) {
-                    handleLoadDashboardData(data);
-                    console.log('Auto-sync: Data synchronized from cloud.');
-                }
-            } catch (e: any) {
-                // 如果是 404 或其他错误，通常不需要打扰用户，但在控制台记录
-                console.warn('Auto-sync startup info:', e.message);
-            }
-        }
-    };
-    
-    // 延迟一点执行，确保 React 状态稳定，且让用户先看到 UI 骨架
-    const timer = setTimeout(() => {
-        initCloudData();
-    }, 500);
+  const saveDataToKV = async () => {
+      const payload = {
+          version: 2,
+          updatedAt: new Date().toISOString(),
+          bookmarks,
+          categories,
+          config: { appName, appSubtitle, appFontSize, theme }
+      };
 
-    return () => clearTimeout(timer);
-  }, [token, pullData]); // 依赖项包含 token，确保一旦 Token 被解码或加载，立即触发同步
+      // 1. Always save to local storage (Offline support & Cache)
+      saveToLocalStorage(payload);
 
-  // Initialize state from LocalStorage (Fallback if cloud fails or no token)
+      // 2. Try to sync to Cloudflare KV
+      setSyncState('syncing');
+      try {
+          const res = await fetch('/api/sync', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'x-auth-token': '1211' // Hardcoded admin password for write access
+              },
+              body: JSON.stringify(payload)
+          });
+
+          if (res.ok) {
+              setSyncState('saved');
+              setTimeout(() => setSyncState('idle'), 2000);
+          } else {
+              console.error('KV Save Failed:', res.status);
+              setSyncState('error');
+          }
+      } catch (error) {
+          console.error('KV Save Network Error:', error);
+          setSyncState('error');
+      }
+  };
+
+  // --- Effects ---
+
+  // 1. App Mount: Load data
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
         setIsSidebarOpen(false);
     }
-
-    const storedBookmarks = localStorage.getItem('flatnav_bookmarks');
-    const storedCategories = localStorage.getItem('flatnav_categories');
-    const storedTheme = localStorage.getItem('flatnav_theme') as ThemeType;
-    const storedAppName = localStorage.getItem('flatnav_app_name');
-    const storedAppFontSize = localStorage.getItem('flatnav_app_font_size');
-    const storedAppSubtitle = localStorage.getItem('flatnav_app_subtitle');
-
-    // Only load from local storage if state is currently empty/default to avoid overwriting cloud pull
-    // However, since Cloud Pull is async, we load Local first to show *something* fast.
-    if (storedBookmarks) setBookmarks(JSON.parse(storedBookmarks));
-    if (storedCategories) {
-        const parsedCats = JSON.parse(storedCategories);
-        setCategories(parsedCats);
-        if (parsedCats.length > 0) setActiveCategoryId(parsedCats[0].id);
-    } else {
-        if (INITIAL_CATEGORIES.length > 0) setActiveCategoryId(INITIAL_CATEGORIES[0].id);
-    }
     
-    if (storedTheme) {
-        setTheme(storedTheme);
-    }
+    // Fallback: load theme immediately to avoid flash
+    const storedTheme = localStorage.getItem('flatnav_theme') as ThemeType;
+    if (storedTheme) setTheme(storedTheme); // Keep specialized theme key for init
 
-    if (storedAppName) setAppName(storedAppName);
-    if (storedAppFontSize) setAppFontSize(storedAppFontSize);
-    if (storedAppSubtitle) setAppSubtitle(storedAppSubtitle);
+    // Try loading from Cloud, fallback to Local
+    loadDataFromKV().then(() => {
+        isFirstLoad.current = false;
+    });
   }, []);
 
-  // Persist changes to LocalStorage
+  // 2. Auto-Save
   useEffect(() => {
-    localStorage.setItem('flatnav_bookmarks', JSON.stringify(bookmarks));
-    localStorage.setItem('flatnav_categories', JSON.stringify(categories));
-  }, [bookmarks, categories]);
+      if (isFirstLoad.current) return;
 
-  // Persist Theme
-  useEffect(() => {
-      localStorage.setItem('flatnav_theme', theme);
-  }, [theme]);
+      const timer = setTimeout(() => {
+          // If authenticated (admin), we try to sync changes.
+          // Even if not authenticated, we save to localStorage for the user's session.
+          if (isAuthenticated) {
+             saveDataToKV();
+          } else {
+             // For non-admins, we still save to local storage so they don't lose temporary edits (if enabled)
+             saveToLocalStorage({ bookmarks, categories, config: { appName, appSubtitle, appFontSize, theme } });
+          }
+      }, 2000);
 
+      return () => clearTimeout(timer);
+  }, [bookmarks, categories, appName, appSubtitle, appFontSize, theme, isAuthenticated]);
+
+
+  // Login Logic
   const handleLogin = (password: string): { success: boolean; message?: string } => {
     const ADMIN_PASSWORD = '1211';
     const today = new Date().toLocaleDateString();
-    const lastAttemptDate = localStorage.getItem('flatnav_last_attempt_date');
     let attempts = parseInt(localStorage.getItem('flatnav_login_attempts') || '0', 10);
+    const lastAttemptDate = localStorage.getItem('flatnav_last_attempt_date');
 
     if (lastAttemptDate !== today) {
         attempts = 0;
@@ -226,15 +212,13 @@ const App: React.FC = () => {
     if (password === ADMIN_PASSWORD) {
       setIsAuthenticated(true);
       localStorage.setItem('flatnav_login_attempts', '0');
+      // On login, force a sync attempt to ensure we have latest cloud data before editing
+      loadDataFromKV();
       return { success: true };
     } else {
       attempts += 1;
       localStorage.setItem('flatnav_login_attempts', attempts.toString());
       localStorage.setItem('flatnav_last_attempt_date', today);
-      
-      if (attempts >= 3) {
-           return { success: false, message: '安全警告：今日密码错误次数过多，本设备已禁止登录。请明日再试。' };
-      }
       return { success: false, message: `密码错误。今日剩余尝试次数：${3 - attempts}` };
     }
   };
@@ -244,8 +228,9 @@ const App: React.FC = () => {
     setIsEditMode(false); 
   };
 
+  // Local JSON Backup (Manual)
   const handleExportData = () => {
-    const data = getDashboardData();
+    const data = { bookmarks, categories, config: { appName, appSubtitle, appFontSize, theme } };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -265,26 +250,29 @@ const App: React.FC = () => {
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        handleLoadDashboardData(json);
-        alert('数据导入成功！您的书签和设置已恢复。');
-        setTimeout(() => window.location.reload(), 500);
+        if (json.bookmarks) setBookmarks(json.bookmarks);
+        if (json.categories) setCategories(json.categories);
+        if (json.config) {
+            setAppName(json.config.appName || appName);
+            setAppSubtitle(json.config.appSubtitle || appSubtitle);
+            setTheme(json.config.theme || theme);
+        }
+        alert('数据导入成功！已保存到本地并尝试同步到云端。');
+        // This change will trigger the useEffect to save to KV
       } catch (err) {
         alert('导入失败：文件格式不正确');
-        console.error(err);
       }
     };
     reader.readAsText(file);
     e.target.value = '';
   };
 
+  // CRUD Handlers
   const handleSaveBookmark = (newBookmarkData: Omit<Bookmark, 'id'>) => {
     if (editingBookmark) {
         setBookmarks(prev => prev.map(b => b.id === editingBookmark.id ? { ...b, ...newBookmarkData } : b));
     } else {
-        const newBookmark: Bookmark = {
-            ...newBookmarkData,
-            id: Date.now().toString(),
-        };
+        const newBookmark: Bookmark = { ...newBookmarkData, id: Date.now().toString() };
         setBookmarks(prev => [...prev, newBookmark]);
     }
     setEditingBookmark(null);
@@ -300,11 +288,7 @@ const App: React.FC = () => {
       } else if (editingCategory) {
           setCategories(prev => prev.map(c => c.id === editingCategory.id ? { ...c, ...categoryData, id: c.id } : c));
       } else {
-          const newCategory: Category = {
-              id: Date.now().toString(),
-              name: categoryData.name,
-              color: categoryData.color
-          };
+          const newCategory: Category = { id: Date.now().toString(), name: categoryData.name, color: categoryData.color };
           setCategories(prev => [...prev, newCategory]);
       }
       setEditingCategory(null);
@@ -319,9 +303,6 @@ const App: React.FC = () => {
       setAppName(name);
       setAppFontSize(fontSize);
       setAppSubtitle(subtitle);
-      localStorage.setItem('flatnav_app_name', name);
-      localStorage.setItem('flatnav_app_font_size', fontSize);
-      localStorage.setItem('flatnav_app_subtitle', subtitle);
   };
 
   const scrollToCategory = (categoryId: string) => {
@@ -609,25 +590,24 @@ const App: React.FC = () => {
                 {isAuthenticated ? (
                      <div className="flex flex-col gap-2 p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-[var(--accent-bg)] text-[var(--accent-color)] flex items-center justify-center relative">
+                            <div className={`w-9 h-9 rounded-full flex items-center justify-center relative ${
+                                syncState === 'error' ? 'bg-red-100 text-red-500' : 'bg-[var(--accent-bg)] text-[var(--accent-color)]'
+                            }`}>
                                 <User size={18} />
-                                {/* Cloud Status Indicator */}
-                                {token && (
-                                    <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center ${
-                                        syncStatus.state === 'error' ? 'bg-red-500' :
-                                        syncStatus.state === 'loading' ? 'bg-blue-500 animate-pulse' :
-                                        syncStatus.state === 'success' ? 'bg-green-500' : 'bg-slate-300'
-                                    }`}>
-                                        <Cloud size={8} className="text-white" fill="currentColor"/>
-                                    </div>
-                                )}
+                                <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center ${
+                                    syncState === 'error' ? 'bg-red-500' :
+                                    syncState === 'syncing' ? 'bg-blue-500 animate-pulse' :
+                                    syncState === 'saved' ? 'bg-green-500' : 'bg-green-500'
+                                }`}>
+                                    <Cloud size={8} className="text-white" fill="currentColor"/>
+                                </div>
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs font-bold text-[var(--text-primary)] truncate">管理员</p>
-                                <p className="text-[10px] text-[var(--text-secondary)] truncate">
-                                    {autoSync ? (
-                                        <span className="flex items-center gap-1 text-green-600"><RefreshCw size={8} className={syncStatus.state === 'loading' ? 'animate-spin' : ''}/> 自动同步开</span>
-                                    ) : '已登录'}
+                                <p className={`text-[10px] truncate ${syncState === 'error' ? 'text-red-500 font-medium' : 'text-[var(--text-secondary)]'}`}>
+                                    {syncState === 'error' ? '本地模式 (未同步)' :
+                                     syncState === 'syncing' ? '正在同步...' :
+                                     syncState === 'saved' ? '已保存到云端' : 'KV 实时同步'}
                                 </p>
                             </div>
                             <button 
@@ -641,23 +621,13 @@ const App: React.FC = () => {
 
                         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[var(--border-color)] mt-1">
                              <button
-                                onClick={() => setIsSyncModalOpen(true)}
-                                className={`col-span-2 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
-                                    syncStatus.state === 'error' ? 'bg-red-50 text-red-600' : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:bg-blue-50 hover:text-blue-600'
-                                }`}
-                                title="云端设置"
-                            >
-                                {syncStatus.state === 'error' ? <AlertCircle size={12}/> : <Cloud size={12} />} 
-                                {syncStatus.state === 'error' ? '同步出错' : '云同步设置'}
-                            </button>
-                             <button
-                                onClick={handleExportData}
+                                onClick={() => loadDataFromKV()}
                                 className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-blue-600 transition-colors"
                             >
-                                <Download size={12} /> 备份
+                                <RefreshCw size={12} className={syncState === 'syncing' ? 'animate-spin' : ''} /> 刷新数据
                             </button>
                             <label className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-green-600 transition-colors cursor-pointer">
-                                <Upload size={12} /> 恢复
+                                <Upload size={12} /> 导入旧版
                                 <input type="file" accept=".json" className="hidden" onChange={handleImportData} />
                             </label>
                         </div>
@@ -776,18 +746,6 @@ const App: React.FC = () => {
         initialName={appName}
         initialFontSize={appFontSize}
         initialSubtitle={appSubtitle}
-      />
-      <SyncModal
-        isOpen={isSyncModalOpen}
-        onClose={() => setIsSyncModalOpen(false)}
-        token={token}
-        setToken={setToken}
-        autoSync={autoSync}
-        setAutoSync={setAutoSync}
-        status={syncStatus}
-        lastSuccessTime={lastSuccessTime}
-        onUpload={handleManualUpload}
-        onDownload={handleManualDownload}
       />
     </div>
   );
