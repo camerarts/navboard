@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Download, Upload, Cloud, RefreshCw, AlertCircle, Save } from 'lucide-react';
+import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Cloud, RefreshCw } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -49,6 +49,7 @@ const App: React.FC = () => {
 
   // Cloudflare KV Sync State
   const [syncState, setSyncState] = useState<SyncState>('idle');
+  const [lastRefreshed, setLastRefreshed] = useState<string>('');
   const isFirstLoad = useRef(true);
 
   // --- Helper: Local Storage Fallback ---
@@ -101,12 +102,14 @@ const App: React.FC = () => {
                   }
                   console.log('已从 Cloudflare KV 加载最新数据');
                   setSyncState('idle');
+                  setLastRefreshed(new Date().toLocaleTimeString());
                   // Update local cache
                   saveToLocalStorage({ bookmarks: data.bookmarks, categories: data.categories, config: data.config });
               } else {
                   console.log('KV 为空，尝试加载本地缓存');
                   loadFromLocalStorage();
                   setSyncState('idle');
+                  setLastRefreshed(new Date().toLocaleTimeString() + ' (本地)');
               }
           } else {
               throw new Error(`Server returned ${res.status}`);
@@ -115,6 +118,7 @@ const App: React.FC = () => {
           console.warn('KV 连接失败，切换至本地模式:', error);
           loadFromLocalStorage();
           setSyncState('error'); // Indicates "Local Mode"
+          setLastRefreshed('本地模式');
       }
   };
 
@@ -144,6 +148,7 @@ const App: React.FC = () => {
 
           if (res.ok) {
               setSyncState('saved');
+              setLastRefreshed(new Date().toLocaleTimeString());
               setTimeout(() => setSyncState('idle'), 2000);
           } else {
               console.error('KV Save Failed:', res.status);
@@ -226,45 +231,6 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setIsEditMode(false); 
-  };
-
-  // Local JSON Backup (Manual)
-  const handleExportData = () => {
-    const data = { bookmarks, categories, config: { appName, appSubtitle, appFontSize, theme } };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `flatnav-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        if (json.bookmarks) setBookmarks(json.bookmarks);
-        if (json.categories) setCategories(json.categories);
-        if (json.config) {
-            setAppName(json.config.appName || appName);
-            setAppSubtitle(json.config.appSubtitle || appSubtitle);
-            setTheme(json.config.theme || theme);
-        }
-        alert('数据导入成功！已保存到本地并尝试同步到云端。');
-        // This change will trigger the useEffect to save to KV
-      } catch (err) {
-        alert('导入失败：文件格式不正确');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
   };
 
   // CRUD Handlers
@@ -619,17 +585,20 @@ const App: React.FC = () => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[var(--border-color)] mt-1">
-                             <button
-                                onClick={() => loadDataFromKV()}
-                                className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-blue-600 transition-colors"
-                            >
-                                <RefreshCw size={12} className={syncState === 'syncing' ? 'animate-spin' : ''} /> 刷新数据
-                            </button>
-                            <label className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-green-600 transition-colors cursor-pointer">
-                                <Upload size={12} /> 导入旧版
-                                <input type="file" accept=".json" className="hidden" onChange={handleImportData} />
-                            </label>
+                        <div className="pt-2 border-t border-[var(--border-color)] mt-1">
+                            <div className="flex items-center justify-between">
+                                <button
+                                    onClick={() => loadDataFromKV()}
+                                    className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-blue-600 transition-colors"
+                                >
+                                    <RefreshCw size={12} className={syncState === 'syncing' ? 'animate-spin' : ''} /> 刷新数据
+                                </button>
+                                {lastRefreshed && (
+                                    <span className="text-[10px] text-[var(--text-secondary)] opacity-70 px-2" title="上次更新时间">
+                                        {lastRefreshed}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ) : (
