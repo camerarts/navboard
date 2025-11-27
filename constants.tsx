@@ -2,16 +2,7 @@ import React from 'react';
 import { Category, Bookmark, SearchEngine } from './types';
 import { Search, Globe, Code, Coffee, Briefcase, ShoppingCart } from 'lucide-react';
 
-// --- 安全配置 ---
-// ⚠️ 常见问题：如果遇到【同步出错】或【Token 无效】，通常是因为 Token 被 GitHub 自动作废了。
-// GitHub 的安全扫描器会检测代码库中的明文 Token 并立即使其失效。
-
-// ✅ 修复步骤：
-// 1. 去 GitHub 生成新 Token (Settings -> Developer settings -> Personal access tokens -> Tokens (classic) -> Generate new token -> 勾选 'gist')。
-// 2. 拿到以 ghp_ 开头的 Token 后，不要直接填在这里！
-// 3. 在浏览器控制台输入: btoa('您的ghp_开头的Token')
-// 4. 将输出的 Base64 字符串 (例如 Z2hwXy4uLg==) 填入下方引号中。
-export const GITHUB_TOKEN_ENCODED = 'Z2hwX0xsNWJRTFByZExWWXFjSlBvcUZtWHpDbUlNaXVhNjE2b0I5Yw=='; 
+export const GITHUB_TOKEN_ENCODED = '';
 
 export const INITIAL_CATEGORIES: Category[] = [
   { id: '1', name: '日常办公', color: 'bg-blue-500' },
