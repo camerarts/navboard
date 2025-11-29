@@ -118,7 +118,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
       {/* Category Header - Compact spacing */}
       <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-[var(--border-color)]">
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 shadow-md ${category.color} transform transition-transform group-hover:scale-110 duration-500`}>
-          {React.cloneElement(Icon as React.ReactElement, { size: 16 })}
+          {React.cloneElement(Icon as React.ReactElement<any>, { size: 16 })}
         </div>
         <h2 className="text-base font-bold text-[var(--text-primary)]">{category.name}</h2>
         
