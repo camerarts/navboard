@@ -4,6 +4,7 @@ export interface Bookmark {
   url: string;
   categoryId: string;
   icon?: string; // URL to favicon or icon name
+  description?: string; // Short description of the website
 }
 
 export interface Category {
