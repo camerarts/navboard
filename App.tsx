@@ -21,6 +21,7 @@ const App: React.FC = () => {
   
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [sessionPassword, setSessionPassword] = useState(''); // Store validated password for KV writes
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // UI State
@@ -135,13 +136,18 @@ const App: React.FC = () => {
       saveToLocalStorage(payload);
 
       // 2. Try to sync to Cloudflare KV
+      if (!sessionPassword) {
+          // If logged in but no password (e.g. forced state), can't save to cloud
+          return;
+      }
+
       setSyncState('syncing');
       try {
           const res = await fetch('/api/sync', {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',
-                  'x-auth-token': '1211' // Hardcoded admin password for write access
+                  'x-auth-token': sessionPassword
               },
               body: JSON.stringify(payload)
           });
@@ -170,12 +176,19 @@ const App: React.FC = () => {
     
     // Fallback: load theme immediately to avoid flash
     const storedTheme = localStorage.getItem('flatnav_theme') as ThemeType;
-    if (storedTheme) setTheme(storedTheme); // Keep specialized theme key for init
+    if (storedTheme) setTheme(storedTheme); 
 
     // Try loading from Cloud, fallback to Local
     loadDataFromKV().then(() => {
         isFirstLoad.current = false;
     });
+    
+    // Attempt to restore session
+    const savedPassword = localStorage.getItem('flatnav_session_pwd');
+    if (savedPassword) {
+        setSessionPassword(savedPassword);
+        setIsAuthenticated(true);
+    }
   }, []);
 
   // 2. Auto-Save
@@ -183,9 +196,7 @@ const App: React.FC = () => {
       if (isFirstLoad.current) return;
 
       const timer = setTimeout(() => {
-          // If authenticated (admin), we try to sync changes.
-          // Even if not authenticated, we save to localStorage for the user's session.
-          if (isAuthenticated) {
+          if (isAuthenticated && sessionPassword) {
              saveDataToKV();
           } else {
              // For non-admins, we still save to local storage so they don't lose temporary edits (if enabled)
@@ -194,12 +205,11 @@ const App: React.FC = () => {
       }, 2000);
 
       return () => clearTimeout(timer);
-  }, [bookmarks, categories, appName, appSubtitle, appFontSize, theme, isAuthenticated]);
+  }, [bookmarks, categories, appName, appSubtitle, appFontSize, theme, isAuthenticated, sessionPassword]);
 
 
   // Login Logic
-  const handleLogin = (password: string): { success: boolean; message?: string } => {
-    const ADMIN_PASSWORD = '1211';
+  const handleLogin = async (password: string): Promise<{ success: boolean; message?: string }> => {
     const today = new Date().toLocaleDateString();
     let attempts = parseInt(localStorage.getItem('flatnav_login_attempts') || '0', 10);
     const lastAttemptDate = localStorage.getItem('flatnav_last_attempt_date');
@@ -210,27 +220,50 @@ const App: React.FC = () => {
         localStorage.setItem('flatnav_last_attempt_date', today);
     }
 
-    if (attempts >= 3) {
-        return { success: false, message: '安全警告：今日密码错误次数过多，本设备已禁止登录。请明日再试。' };
+    if (attempts >= 5) {
+        return { success: false, message: '安全警告：今日尝试次数过多，请明日再试。' };
     }
 
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('flatnav_login_attempts', '0');
-      // On login, force a sync attempt to ensure we have latest cloud data before editing
-      loadDataFromKV();
-      return { success: true };
-    } else {
-      attempts += 1;
-      localStorage.setItem('flatnav_login_attempts', attempts.toString());
-      localStorage.setItem('flatnav_last_attempt_date', today);
-      return { success: false, message: `密码错误。今日剩余尝试次数：${3 - attempts}` };
+    try {
+        // Send a verify-only request to the backend
+        const res = await fetch('/api/sync', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-auth-token': password
+            },
+            body: JSON.stringify({ verifyOnly: true })
+        });
+
+        if (res.ok) {
+            setIsAuthenticated(true);
+            setSessionPassword(password);
+            localStorage.setItem('flatnav_login_attempts', '0');
+            // Cache session for reload convenience (optional, be careful with security)
+            localStorage.setItem('flatnav_session_pwd', password); 
+            
+            // Refresh data from cloud to ensure consistency
+            loadDataFromKV();
+            return { success: true };
+        } else if (res.status === 401) {
+            attempts += 1;
+            localStorage.setItem('flatnav_login_attempts', attempts.toString());
+            localStorage.setItem('flatnav_last_attempt_date', today);
+            return { success: false, message: '密码错误' };
+        } else {
+            return { success: false, message: `服务器异常 (${res.status})` };
+        }
+    } catch (error) {
+        console.error("Login Network Error", error);
+        return { success: false, message: '连接验证服务器失败 (Network Error)' };
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setIsEditMode(false); 
+    setSessionPassword('');
+    localStorage.removeItem('flatnav_session_pwd');
   };
 
   // CRUD Handlers
