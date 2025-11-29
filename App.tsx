@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Cloud, RefreshCw } from 'lucide-react';
 import SearchBar from './components/SearchBar';
@@ -285,11 +284,11 @@ const App: React.FC = () => {
   };
 
   // CRUD Handlers
-  const handleSaveBookmark = (newBookmarkData: Omit<Bookmark, 'id'>) => {
+  const handleSaveBookmark = (newBookmarkData: Partial<Bookmark>) => {
     if (editingBookmark) {
-        setBookmarks(prev => prev.map(b => b.id === editingBookmark.id ? { ...b, ...newBookmarkData } : b));
+        setBookmarks(prev => prev.map(b => b.id === editingBookmark.id ? { ...b, ...newBookmarkData } as Bookmark : b));
     } else {
-        const newBookmark: Bookmark = { ...newBookmarkData, id: Date.now().toString() };
+        const newBookmark: Bookmark = { ...newBookmarkData, id: Date.now().toString() } as Bookmark;
         setBookmarks(prev => [...prev, newBookmark]);
     }
     setEditingBookmark(null);
@@ -326,7 +325,9 @@ const App: React.FC = () => {
       setActiveCategoryId(categoryId);
       const element = document.getElementById(`category-${categoryId}`);
       if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const yOffset = -80; // Offset for sticky header/search bar
+          const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
       }
       if (window.innerWidth < 768) {
           setIsSidebarOpen(false);
@@ -693,7 +694,7 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
                 {categories.map((category, index) => (
                     <div
                         key={category.id}
