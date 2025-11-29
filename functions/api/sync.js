@@ -28,22 +28,35 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   try {
+    const request = context.request;
+    const body = await request.json();
+    
+    // Get password from Cloudflare Environment Variable, fallback to '1211'
+    const SERVER_PASSWORD = context.env.PASSWORD || '1211';
+    
+    // Check Authorization
+    const authHeader = request.headers.get("x-auth-token");
+    if (authHeader !== SERVER_PASSWORD) {
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { 
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    // Verification Mode (Login Check)
+    if (body.verifyOnly) {
+        return new Response(JSON.stringify({ success: true }), {
+            headers: { "Content-Type": "application/json" }
+        });
+    }
+
     // Safety check: Ensure KV binding exists
     if (!context.env.FLATNAV_KV) {
        return new Response(JSON.stringify({ error: "KV Binding 'FLATNAV_KV' not found." }), { status: 503 });
     }
 
-    const request = context.request;
-    const body = await request.json();
-    
-    // 安全校验：只有持有正确密码（1211）的请求才允许写入数据库
-    // 这里的 x-auth-token 由前端 App.tsx 发送
-    const authHeader = request.headers.get("x-auth-token");
-    if (authHeader !== "1211") {
-      return new Response("Unauthorized", { status: 401 });
-    }
-
-    // 将数据写入 KV，设置 cacheTtl 为 60 秒（可选）
+    // Write to KV
+    // Set cacheTtl to 60 seconds (optional)
     await context.env.FLATNAV_KV.put("dashboard_data", JSON.stringify(body));
 
     return new Response(JSON.stringify({ success: true }), {
