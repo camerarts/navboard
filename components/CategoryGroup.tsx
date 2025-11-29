@@ -177,25 +177,30 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                      e.stopPropagation();
                  }
               }}
-              className={`flex items-center rounded-xl bg-[var(--bg-subtle)] border border-transparent transition-all duration-300 ease-out relative overflow-hidden h-full ${
+              className={`flex items-start rounded-xl bg-[var(--bg-subtle)] border border-transparent transition-all duration-300 ease-out relative overflow-hidden h-full ${
                   isEditMode 
-                    ? 'border-[var(--border-color)] pr-24 cursor-move flex-row p-3 gap-3 bg-[var(--bg-card)]' 
-                    : 'hover:bg-[var(--bg-card)] hover:border-blue-200 hover:shadow-lg hover:scale-105 hover:-translate-y-0.5 p-3 gap-2.5' 
+                    ? 'border-[var(--border-color)] pr-24 cursor-move flex-row p-3 gap-3 bg-[var(--bg-card)] items-center' 
+                    : 'hover:bg-[var(--bg-card)] hover:border-blue-200 hover:shadow-lg hover:scale-105 hover:-translate-y-0.5 p-3 gap-3' 
               }`}
             >
-              <div className="relative shrink-0">
+              <div className="relative shrink-0 mt-0.5">
                 <BookmarkIcon 
                     url={bookmark.url} 
                     title={bookmark.title}
-                    className="w-6 h-6 rounded-md shadow-sm group-hover:shadow-md transition-shadow"
+                    className="w-8 h-8 rounded-lg shadow-sm group-hover:shadow-md transition-shadow"
                 />
               </div>
               
-              <span className="text-sm font-medium text-[var(--text-primary)] truncate w-full text-left">
-                  {bookmark.title}
-              </span>
+              <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-sm font-bold text-[var(--text-primary)] truncate w-full text-left leading-tight">
+                      {bookmark.title}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-left mt-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                      {bookmark.description || '无说明'}
+                  </span>
+              </div>
               
-              {!isEditMode && <ExternalLink size={12} className="text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-all duration-300 shrink-0 ml-auto -translate-x-2 group-hover:translate-x-0" />}
+              {!isEditMode && <ExternalLink size={12} className="text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-all duration-300 shrink-0 ml-auto absolute top-2 right-2" />}
             </a>
             
             {/* Edit Mode Controls for Bookmark */}
