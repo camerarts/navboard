@@ -1,29 +1,38 @@
+
 import React, { useState } from 'react';
-import { X, Lock, AlertCircle, Ban } from 'lucide-react';
+import { X, Lock, AlertCircle, Ban, Loader2 } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (password: string) => { success: boolean; message?: string };
+  onLogin: (password: string) => Promise<{ success: boolean; message?: string }>;
 }
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    const result = onLogin(password);
-    if (result.success) {
-      setPassword('');
-      setError('');
-      onClose();
-    } else {
-      setError(result.message || '密码错误');
+    try {
+        const result = await onLogin(password);
+        if (result.success) {
+            setPassword('');
+            setError('');
+            onClose();
+        } else {
+            setError(result.message || '密码错误');
+        }
+    } catch (e) {
+        setError('发生意外错误');
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -50,7 +59,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLocked}
+              disabled={isLocked || isLoading}
               className={`w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
               placeholder={isLocked ? "已禁止输入" : "输入管理员密码"}
               autoFocus={!isLocked}
@@ -66,14 +75,14 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
 
           <button
             type="submit"
-            disabled={isLocked}
-            className={`w-full text-white rounded-lg px-4 py-3 font-medium transition shadow-md active:transform active:scale-95 ${
-                isLocked
+            disabled={isLocked || isLoading}
+            className={`w-full flex items-center justify-center gap-2 text-white rounded-lg px-4 py-3 font-medium transition shadow-md active:transform active:scale-95 ${
+                isLocked || isLoading
                 ? 'bg-slate-400 cursor-not-allowed hover:bg-slate-400'
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
-            {isLocked ? '明日再试' : '登录'}
+            {isLoading ? <Loader2 size={20} className="animate-spin" /> : (isLocked ? '明日再试' : '登录')}
           </button>
         </form>
       </div>
