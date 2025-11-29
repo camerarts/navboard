@@ -195,9 +195,11 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
                   <span className="text-sm font-bold text-[var(--text-primary)] truncate w-full text-left leading-tight">
                       {bookmark.title}
                   </span>
-                  <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-left mt-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                      {bookmark.description || '无说明'}
-                  </span>
+                  {bookmark.description && (
+                    <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-left mt-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                        {bookmark.description}
+                    </span>
+                  )}
               </div>
               
               {!isEditMode && <ExternalLink size={12} className="text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-all duration-300 shrink-0 ml-auto absolute top-2 right-2" />}
