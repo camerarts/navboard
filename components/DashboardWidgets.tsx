@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Cloud, Sun, CloudRain, CloudSnow, CloudLightning, CloudFog, Wind, MapPin, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 
@@ -64,19 +65,19 @@ const CalendarCard: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 md:p-4 shadow-sm border border-[var(--border-color)] h-32 flex items-center justify-between relative overflow-hidden group hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
-      <div className="flex flex-col items-center justify-center bg-red-500 text-white rounded-2xl w-12 h-16 md:w-16 md:h-20 shadow-red-200/50 shadow-lg shrink-0 transform group-hover:scale-110 transition-transform duration-500">
-        <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider bg-red-600 w-full text-center py-1 rounded-t-2xl">
+    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-2 xl:p-4 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-between relative overflow-hidden group hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
+      <div className="flex flex-col items-center justify-center bg-red-500 text-white rounded-xl xl:rounded-2xl w-10 h-14 xl:w-16 xl:h-20 shadow-red-200/50 shadow-lg shrink-0 transform group-hover:scale-110 transition-transform duration-500">
+        <span className="text-[8px] xl:text-[10px] font-bold uppercase tracking-wider bg-red-600 w-full text-center py-0.5 xl:py-1 rounded-t-xl xl:rounded-t-2xl">
           {date.getMonth() + 1}月
         </span>
-        <span className="text-xl md:text-2xl font-black tracking-tighter leading-none py-1 md:py-2">
+        <span className="text-lg xl:text-2xl font-black tracking-tighter leading-none py-1 xl:py-2">
           {date.getDate()}
         </span>
       </div>
-      <div className="flex-1 pl-3 flex flex-col justify-center min-w-0">
-        <h3 className="text-sm md:text-base font-bold text-[var(--text-primary)] mb-0.5 truncate">{WEEKDAYS[date.getDay()]}</h3>
-        <p className="text-[10px] text-[var(--text-secondary)] font-medium truncate">{getLunarDate(date)}</p>
-        <p className="text-base md:text-lg font-mono text-[var(--text-primary)] mt-1 tracking-widest truncate opacity-90 font-semibold">
+      <div className="flex-1 pl-2 xl:pl-3 flex flex-col justify-center min-w-0">
+        <h3 className="text-xs xl:text-base font-bold text-[var(--text-primary)] mb-0.5 truncate">{WEEKDAYS[date.getDay()]}</h3>
+        <p className="text-[9px] xl:text-[10px] text-[var(--text-secondary)] font-medium truncate">{getLunarDate(date)}</p>
+        <p className="text-sm xl:text-lg font-mono text-[var(--text-primary)] mt-0.5 xl:mt-1 tracking-widest truncate opacity-90 font-semibold">
             {date.toLocaleTimeString('en-GB', { hour12: false })}
         </p>
       </div>
@@ -122,20 +123,20 @@ const WeatherCard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex items-center justify-center w-full">
-        <Loader2 className="animate-spin text-blue-500" />
+      <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-center w-full">
+        <Loader2 className="animate-spin text-blue-500 w-5 h-5 xl:w-6 xl:h-6" />
       </div>
     );
   }
 
   if (error || !weather) {
     return (
-      <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex flex-col items-center justify-center text-[var(--text-secondary)] gap-2 w-full">
-        <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+      <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col items-center justify-center text-[var(--text-secondary)] gap-1 xl:gap-2 w-full">
+        <div className="flex items-center gap-2 text-xs xl:text-sm font-bold text-[var(--text-primary)]">
             <AlertTriangle size={14} className="text-yellow-500" />
             {error}
         </div>
-        <button onClick={() => window.location.reload()} className="text-xs text-blue-500 mt-1 hover:underline">刷新</button>
+        <button onClick={() => window.location.reload()} className="text-[10px] xl:text-xs text-blue-500 mt-1 hover:underline">刷新</button>
       </div>
     );
   }
@@ -144,42 +145,42 @@ const WeatherCard: React.FC = () => {
   const daily = weather.daily;
 
   return (
-    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex hover:shadow-xl hover:scale-[1.02] transition-all duration-500 overflow-hidden w-full relative items-center">
+    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-2 xl:p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex hover:shadow-xl hover:scale-[1.02] transition-all duration-500 overflow-hidden w-full relative items-center">
       {/* Current Weather Container */}
-      <div className="flex flex-col items-start justify-between w-full md:w-auto md:min-w-[160px] md:max-w-[40%] md:pr-4 md:mr-1 md:border-r border-[var(--border-color)] h-full py-1">
+      <div className="flex flex-col items-start justify-between w-full md:w-auto md:min-w-[120px] xl:min-w-[160px] md:max-w-[50%] md:pr-4 md:mr-1 md:border-r border-[var(--border-color)] h-full py-0.5 xl:py-1">
         
         {/* Top Row on Mobile: Location */}
         <div className="w-full flex justify-between items-center">
-             <div className="flex items-center gap-1.5 text-[var(--text-secondary)] text-[11px] font-bold uppercase tracking-wider">
-                <MapPin size={12} className="shrink-0" />
-                <span className="truncate font-medium block max-w-[120px]" title={weather.locationName}>{weather.locationName}</span>
+             <div className="flex items-center gap-1 xl:gap-1.5 text-[var(--text-secondary)] text-[10px] xl:text-[11px] font-bold uppercase tracking-wider">
+                <MapPin size={10} className="shrink-0 xl:w-3 xl:h-3" />
+                <span className="truncate font-medium block max-w-[90px] xl:max-w-[120px]" title={weather.locationName}>{weather.locationName}</span>
             </div>
-            <span className="md:hidden text-[10px] text-[var(--text-secondary)] font-bold">今日</span>
+            <span className="md:hidden text-[9px] text-[var(--text-secondary)] font-bold">今日</span>
         </div>
         
         {/* Middle Row: Temp & Icon */}
-        <div className="flex items-center gap-3 mt-1 mb-1">
-             {getWeatherIcon(current.weather_code, 36, "w-8 h-8 md:w-7 md:h-7")}
-             <span className="text-4xl md:text-3xl font-bold text-[var(--text-primary)] tracking-tighter">{Math.round(current.temperature_2m)}°</span>
+        <div className="flex items-center gap-2 xl:gap-3 mt-0.5 mb-0.5 xl:mt-1 xl:mb-1">
+             {getWeatherIcon(current.weather_code, 32, "w-6 h-6 xl:w-8 xl:h-8")}
+             <span className="text-2xl xl:text-3xl font-bold text-[var(--text-primary)] tracking-tighter">{Math.round(current.temperature_2m)}°</span>
         </div>
 
         {/* Bottom Row: High/Low */}
-        <div className="flex items-center gap-3 text-[11px] text-[var(--text-secondary)] font-medium">
+        <div className="flex items-center gap-2 xl:gap-3 text-[10px] xl:text-[11px] text-[var(--text-secondary)] font-medium">
             <span className="whitespace-nowrap">H: {Math.round(daily.temperature_2m_max[0])}°</span>
             <span className="whitespace-nowrap">L: {Math.round(daily.temperature_2m_min[0])}°</span>
         </div>
       </div>
 
-      {/* Forecast (Strictly hidden on mobile, visible on desktop) */}
+      {/* Forecast (Hidden on mobile/narrow view, visible on tablet+) */}
       <div className="hidden md:grid flex-1 grid-cols-5 gap-0.5 pl-0.5 h-full">
         {daily.time.slice(1, 6).map((dateStr: string, index: number) => {
             const date = new Date(dateStr);
             const dayName = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()];
             return (
                 <div key={dateStr} className="flex flex-col items-center justify-center gap-0.5 h-full rounded-lg hover:bg-[var(--bg-subtle)]/50 transition-colors group/day">
-                    <span className="text-[9px] font-bold text-[var(--text-secondary)] scale-90">{dayName}</span>
-                    {getWeatherIcon(daily.weather_code[index + 1], 16, "drop-shadow-sm my-0.5 group-hover/day:scale-110 transition-transform")}
-                    <span className="text-xs font-bold text-[var(--text-primary)]">{Math.round(daily.temperature_2m_max[index + 1])}°</span>
+                    <span className="text-[8px] xl:text-[9px] font-bold text-[var(--text-secondary)] scale-90">{dayName}</span>
+                    {getWeatherIcon(daily.weather_code[index + 1], 14, "w-4 h-4 xl:w-4 xl:h-4 drop-shadow-sm my-0.5 group-hover/day:scale-110 transition-transform")}
+                    <span className="text-[10px] xl:text-xs font-bold text-[var(--text-primary)]">{Math.round(daily.temperature_2m_max[index + 1])}°</span>
                 </div>
             );
         })}
@@ -210,11 +211,11 @@ const ClockCard: React.FC = () => {
   const hourDeg = ((hours % 12 + minutes / 60) / 12) * 360;
 
   return (
-    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-2 shadow-sm border border-[var(--border-color)] h-32 flex items-center justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 relative w-full group overflow-hidden">
+    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-2 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 relative w-full group overflow-hidden">
         {/* Subtle decorative glow on hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-subtle)]/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"/>
         
-        <div className="relative w-24 h-24 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
+        <div className="relative w-16 h-16 xl:w-24 xl:h-24 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
             {/* Clock Face Background */}
             <div className="absolute inset-0 rounded-full bg-[var(--bg-subtle)]/20 border border-[var(--border-color)]/60" />
 
@@ -231,7 +232,7 @@ const ClockCard: React.FC = () => {
                 return (
                     <span 
                         key={num} 
-                        className="absolute text-[10px] font-semibold text-[var(--text-secondary)]/70 select-none"
+                        className="absolute text-[8px] xl:text-[10px] font-semibold text-[var(--text-secondary)]/70 select-none"
                         style={{ 
                             left: `${left}%`, 
                             top: `${top}%`, 
@@ -244,11 +245,11 @@ const ClockCard: React.FC = () => {
             })}
 
             {/* Center Dot */}
-            <div className="absolute w-1.5 h-1.5 bg-[var(--text-primary)] rounded-full z-30 shadow-sm ring-2 ring-[var(--bg-card)]" />
+            <div className="absolute w-1 h-1 xl:w-1.5 xl:h-1.5 bg-[var(--text-primary)] rounded-full z-30 shadow-sm ring-2 ring-[var(--bg-card)]" />
 
             {/* Hour Hand */}
             <div 
-                className="absolute w-1.5 h-6 bg-[var(--text-primary)] rounded-full z-10 origin-bottom shadow-sm"
+                className="absolute w-1 h-4 xl:w-1.5 xl:h-6 bg-[var(--text-primary)] rounded-full z-10 origin-bottom shadow-sm"
                 style={{ 
                     bottom: '50%', 
                     left: '50%', 
@@ -258,7 +259,7 @@ const ClockCard: React.FC = () => {
 
             {/* Minute Hand */}
             <div 
-                className="absolute w-1 h-9 bg-[var(--text-secondary)] rounded-full z-20 origin-bottom opacity-80 shadow-sm"
+                className="absolute w-0.5 h-6 xl:w-1 xl:h-9 bg-[var(--text-secondary)] rounded-full z-20 origin-bottom opacity-80 shadow-sm"
                 style={{ 
                     bottom: '50%', 
                     left: '50%',
@@ -268,7 +269,7 @@ const ClockCard: React.FC = () => {
 
             {/* Second Hand */}
             <div 
-                className="absolute w-0.5 h-10 bg-blue-500 rounded-full z-20 origin-bottom shadow-sm"
+                className="absolute w-[1px] h-7 xl:w-0.5 xl:h-10 bg-blue-500 rounded-full z-20 origin-bottom shadow-sm"
                 style={{ 
                     bottom: '50%', 
                     left: '50%',
@@ -299,34 +300,34 @@ const IPCard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-32 flex items-center justify-center w-full">
-        <Loader2 className="animate-spin text-blue-500" />
+      <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-center w-full">
+        <Loader2 className="animate-spin text-blue-500 w-5 h-5 xl:w-6 xl:h-6" />
       </div>
     );
   }
 
   return (
-    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 md:p-5 shadow-sm border border-[var(--border-color)] h-32 flex flex-col justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
+    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 xl:p-5 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
        {!ipData || !ipData.success ? (
            <div className="text-center">
                <p className="text-[var(--text-secondary)] text-xs">获取失败</p>
-               <button onClick={() => window.location.reload()} className="mt-2 text-blue-500"><RefreshCw size={16} /></button>
+               <button onClick={() => window.location.reload()} className="mt-2 text-blue-500"><RefreshCw size={14} /></button>
            </div>
        ) : (
-           <div className="space-y-1 w-full">
+           <div className="space-y-0.5 xl:space-y-1 w-full">
                <div>
-                   <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-0.5">Current IP</span>
-                   <div className="text-lg md:text-2xl font-bold text-[var(--text-primary)] font-mono tracking-tight truncate" title={ipData.ip}>
+                   <span className="text-[8px] xl:text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-0.5">Current IP</span>
+                   <div className="text-base xl:text-2xl font-bold text-[var(--text-primary)] font-mono tracking-tight truncate" title={ipData.ip}>
                        {ipData.ip}
                    </div>
                </div>
                
-               <div className="flex items-center gap-2 text-[var(--text-secondary)] text-xs mt-1 pt-2 border-t border-[var(--border-color)]">
+               <div className="flex items-center gap-1.5 xl:gap-2 text-[var(--text-secondary)] text-[10px] xl:text-xs mt-1 pt-1 xl:pt-2 border-t border-[var(--border-color)]">
                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 animate-pulse"></span>
                    <span className="truncate font-medium">{ipData.city}, {ipData.country}</span>
                </div>
                
-               <div className="text-[9px] text-[var(--text-secondary)] font-mono truncate opacity-70">
+               <div className="text-[8px] xl:text-[9px] text-[var(--text-secondary)] font-mono truncate opacity-70 hidden xl:block">
                    {ipData.connection?.org || ipData.connection?.isp || 'ISP Unknown'}
                </div>
            </div>
@@ -337,24 +338,24 @@ const IPCard: React.FC = () => {
 
 const DashboardWidgets: React.FC = () => {
   return (
-    <div className="grid grid-cols-2 gap-3 w-full mx-auto mb-8 relative z-20 md:grid-cols-2 xl:flex xl:flex-nowrap xl:items-stretch xl:gap-4">
+    <div className="flex flex-nowrap overflow-x-auto gap-3 w-full mx-auto mb-6 relative z-20 scrollbar-hide snap-x snap-mandatory pb-1 xl:pb-0 xl:gap-4 xl:overflow-visible">
         {/* Calendar */}
-        <div className="w-full xl:w-[20%] min-w-0">
+        <div className="min-w-[140px] w-[40%] md:w-[28%] xl:w-[20%] xl:min-w-0 snap-start shrink-0">
           <CalendarCard />
         </div>
         
         {/* Weather */}
-        <div className="w-full xl:w-[35%] min-w-0">
+        <div className="min-w-[180px] w-[55%] md:w-[40%] xl:w-[35%] xl:min-w-0 snap-start shrink-0">
           <WeatherCard />
         </div>
 
         {/* Clock */}
-        <div className="w-full xl:w-[15%] min-w-0">
+        <div className="min-w-[110px] w-[30%] md:w-[22%] xl:w-[15%] xl:min-w-0 snap-start shrink-0">
            <ClockCard />
         </div>
 
         {/* IP */}
-        <div className="w-full xl:w-[30%] min-w-0">
+        <div className="min-w-[160px] w-[45%] md:w-[32%] xl:w-[30%] xl:min-w-0 snap-start shrink-0">
            <IPCard />
         </div>
     </div>
