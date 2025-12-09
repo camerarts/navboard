@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
   const isFirstLoad = useRef(true);
+  const mainRef = useRef<HTMLElement>(null);
 
   // --- Helper: Local Storage Fallback ---
   const loadFromLocalStorage = () => {
@@ -324,11 +325,21 @@ const App: React.FC = () => {
   const scrollToCategory = (categoryId: string) => {
       setActiveCategoryId(categoryId);
       const element = document.getElementById(`category-${categoryId}`);
-      if (element) {
-          const yOffset = -80; // Offset for sticky header/search bar
-          const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-          window.scrollTo({ top: y, behavior: 'smooth' });
+      const container = mainRef.current;
+
+      if (element && container) {
+          const offset = 100; // Offset for sticky search bar
+          
+          // Calculate target scroll position within the container
+          const elementRect = element.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          const currentScrollTop = container.scrollTop;
+          
+          const targetTop = currentScrollTop + (elementRect.top - containerRect.top) - offset;
+          
+          container.scrollTo({ top: targetTop, behavior: 'smooth' });
       }
+
       if (window.innerWidth < 768) {
           setIsSidebarOpen(false);
       }
@@ -666,7 +677,7 @@ const App: React.FC = () => {
           </div>
       </aside>
 
-      <main className="flex-1 h-full overflow-y-auto scroll-smooth relative z-0">
+      <main ref={mainRef} className="flex-1 h-full overflow-y-auto scroll-smooth relative z-0">
         <div className={`sticky top-8 z-40 h-0 overflow-visible transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${isSidebarOpen ? 'md:-left-3 -left-20' : 'left-4 md:left-6'}`}>
              <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
