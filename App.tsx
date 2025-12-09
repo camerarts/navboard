@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Cloud, RefreshCw } from 'lucide-react';
 import SearchBar from './components/SearchBar';
@@ -46,6 +47,9 @@ const App: React.FC = () => {
   const [appName, setAppName] = useState('FlatNav');
   const [appFontSize, setAppFontSize] = useState('text-xl');
   const [appSubtitle, setAppSubtitle] = useState('Dashboard');
+  
+  // Logo State
+  const [logoError, setLogoError] = useState(false);
 
   // Cloudflare KV Sync State
   const [syncState, setSyncState] = useState<SyncState>('idle');
@@ -328,7 +332,8 @@ const App: React.FC = () => {
       const container = mainRef.current;
 
       if (element && container) {
-          const offset = 100; // Offset for sticky search bar
+          // Changed from 100 to 24 since SearchBar is no longer sticky
+          const offset = 24; 
           
           // Calculate target scroll position within the container
           const elementRect = element.getBoundingClientRect();
@@ -499,8 +504,17 @@ const App: React.FC = () => {
                     onClick={(e) => { e.preventDefault(); window.location.reload(); }}
                     className="group flex items-center gap-3 cursor-pointer select-none focus:outline-none"
                 >
-                    <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-900/20 group-hover:bg-blue-600 transition-all duration-500 ease-out group-hover:scale-110">
-                        <Compass size={22} className="group-hover:rotate-45 transition-transform duration-500" />
+                    <div className={`relative flex items-center justify-center w-10 h-10 rounded-xl shadow-lg transition-all duration-500 ease-out group-hover:scale-110 overflow-hidden ${logoError ? 'bg-slate-900 text-white shadow-slate-900/20 group-hover:bg-blue-600' : 'bg-white shadow-slate-200'}`}>
+                        {logoError ? (
+                            <Compass size={22} className="group-hover:rotate-45 transition-transform duration-500" />
+                        ) : (
+                            <img 
+                                src="/favicon.ico" 
+                                alt="Logo" 
+                                className="w-6 h-6 object-contain"
+                                onError={() => setLogoError(true)}
+                            />
+                        )}
                     </div>
                     <div className="flex flex-col justify-center">
                         <div className="flex items-center gap-2">
@@ -689,7 +703,7 @@ const App: React.FC = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 pb-32">
             <DashboardWidgets />
-            <div className="mb-10 sticky top-4 z-30">
+            <div className="mb-10 relative z-20">
                 <SearchBar />
             </div>
 
