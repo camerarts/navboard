@@ -8,6 +8,7 @@ import CategoryModal from './components/CategoryModal';
 import LoginModal from './components/LoginModal';
 import SiteConfigModal from './components/SiteConfigModal';
 import DashboardWidgets from './components/DashboardWidgets';
+import FishBackground from './components/FishBackground';
 import { Bookmark, Category } from './types';
 import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES, CATEGORY_ICONS } from './constants';
 
@@ -476,6 +477,9 @@ const App: React.FC = () => {
             font-family: 'Courier New', monospace;
         }
       `}</style>
+
+      {/* Background Layer: Fish Animation */}
+      <FishBackground />
 
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
