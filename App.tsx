@@ -695,7 +695,7 @@ const App: React.FC = () => {
           </div>
       </aside>
 
-      <main ref={mainRef} className="flex-1 h-full overflow-y-auto scroll-smooth relative z-0">
+      <main ref={mainRef} className="flex-1 h-full overflow-y-auto scroll-smooth relative z-10">
         <div className={`sticky top-8 z-40 h-0 overflow-visible transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${isSidebarOpen ? 'md:-left-3 -left-20' : 'left-4 md:left-6'}`}>
              <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
