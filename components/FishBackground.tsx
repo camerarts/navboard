@@ -113,6 +113,9 @@ class Fish {
         this.imageLoaded = true;
         this.image = img;
       };
+      img.onerror = () => {
+        this.imageLoaded = false; // 加载失败则使用兜底绘制
+      }
     }
   }
 
@@ -121,7 +124,7 @@ class Fish {
   }
 
   // 行为：寻找目标（鼠标）
-  seek(target: Vector, strength: number, arriveRadius: number = 100) {
+  seek(target: Vector, strength: number, arriveRadius: number = 150) {
     const desired = Vector.sub(target, this.pos);
     const d = desired.mag();
 
@@ -193,7 +196,6 @@ class Fish {
   // 行为：边界处理（软推回）
   boundaries(width: number, height: number) {
     const margin = 50;
-    const desired = null;
     const force = new Vector(0, 0);
     const maxSpeed = this.maxSpeed;
 
@@ -219,7 +221,7 @@ class Fish {
     this.acc.mult(0); // 重置加速度
 
     // 更新摆动相位
-    this.wobble += 0.1;
+    this.wobble += 0.05;
     
     // 平滑旋转
     const desiredAngle = this.vel.heading();
@@ -238,6 +240,7 @@ class Fish {
 
     if (this.imageLoaded && this.image) {
       // 假设鱼图朝向右侧
+      // 如果鱼头朝左，可能需要 flip，这里假设素材统一朝右
       ctx.drawImage(this.image, -this.size / 2, -this.size / 2, this.size, this.size);
     } else {
       // 兜底绘制：画个小鱼形状
@@ -364,8 +367,11 @@ const FishBackground: React.FC<FishProps> = ({
     // 动画循环
     const render = (time: number) => {
       if (!lastTimeRef.current) lastTimeRef.current = time;
-      const deltaTime = time - lastTimeRef.current; // 可以用于校正帧率，这里简单略过
+      const deltaTime = time - lastTimeRef.current; 
       lastTimeRef.current = time;
+
+      // 掉帧保护：如果 deltaTime 过大（例如tab切换回来），限制它，避免鱼飞出屏幕
+      const safeDelta = Math.min(deltaTime, 100);
 
       if (!containerRef.current || !ctx) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
@@ -383,7 +389,7 @@ const FishBackground: React.FC<FishProps> = ({
           fish.wander(wanderStrength);
         }
 
-        fish.update(deltaTime);
+        fish.update(safeDelta);
         fish.draw(ctx);
       }
 
@@ -418,10 +424,10 @@ const FishBackground: React.FC<FishProps> = ({
   return (
     <div 
       ref={containerRef} 
-      className="fixed inset-0 z-0 pointer-events-none overflow-hidden"
-      style={{ zIndex: 0 }} // 确保在背景层，但在内容层之下。App.tsx 的 z-index 设置很重要
+      className="fixed inset-0 pointer-events-none overflow-hidden"
+      style={{ zIndex: 0 }} // 确保在最底层（背景之上，内容之下）
     >
-      <canvas ref={canvasRef} className="block w-full h-full" />
+      <canvas ref={canvasRef} className="block w-full h-full opacity-60" /> 
     </div>
   );
 };
