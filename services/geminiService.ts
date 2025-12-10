@@ -1,8 +1,19 @@
+
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
-// Note: In a real production app, you'd handle the key securely. 
-// Since this is a static build instruction, we assume the environment is set up.
+// Safely access process.env to prevent "process is not defined" errors in browser environments
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env.API_KEY || '';
+    }
+  } catch (e) {
+    // Ignore error if process is not available
+  }
+  return '';
+};
+
+const apiKey = getApiKey();
 
 export const askGeminiQuickAnswer = async (query: string): Promise<string> => {
   if (!apiKey) {
