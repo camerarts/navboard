@@ -8,6 +8,7 @@ import CategoryModal from './components/CategoryModal';
 import LoginModal from './components/LoginModal';
 import SiteConfigModal from './components/SiteConfigModal';
 import DashboardWidgets from './components/DashboardWidgets';
+// Import last to ensure no circular dependency issues
 import FishBackground from './components/FishBackground';
 import { Bookmark, Category } from './types';
 import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES, CATEGORY_ICONS } from './constants';
@@ -96,8 +97,13 @@ const App: React.FC = () => {
       try {
           const res = await fetch('/api/sync');
           
+          // Check for 404 (Local Mode) silently
+          if (res.status === 404) {
+              // API endpoint doesn't exist, use local storage silently
+              throw new Error("Local Mode (Endpoint not found)");
+          }
+
           // Robust check: Ensure we got a JSON response before parsing
-          // This prevents crashes if the server returns an HTML 404/500 page
           const contentType = res.headers.get("content-type");
           if (res.ok && contentType && contentType.includes("application/json")) {
               const data = await res.json();
@@ -124,8 +130,11 @@ const App: React.FC = () => {
           } else {
               throw new Error(`Server returned ${res.status} or invalid content-type`);
           }
-      } catch (error) {
-          console.warn('KV 连接失败，切换至本地模式:', error);
+      } catch (error: any) {
+          // Only warn if it's not a simple 404 (which is expected in static hosting)
+          if (!error.message?.includes("Local Mode")) {
+              console.warn('KV 连接失败，切换至本地模式:', error);
+          }
           loadFromLocalStorage();
           setSyncState('error'); // Indicates "Local Mode"
           setLastRefreshed('本地模式');
@@ -436,7 +445,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[var(--bg-main)] text-[var(--text-primary)] font-sans selection:bg-[var(--accent-bg)] overflow-hidden transition-colors duration-300" data-theme={theme}>
+    <div className="flex h-screen bg-[var(--bg-main)] text-[var(--text-primary)] font-sans selection:bg-[var(--accent-bg)] overflow-hidden transition-colors duration-300 relative" data-theme={theme}>
       <style>{`
         :root {
             --bg-main: #f0f4f8;
