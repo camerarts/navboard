@@ -97,28 +97,33 @@ const WeatherCard: React.FC = () => {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
+    const fetchWeather = async (latitude: number, longitude: number) => {
         try {
-          const { latitude, longitude } = position.coords;
-          const res = await fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&foreground=true`
-          );
-          if (!res.ok) throw new Error('API Error');
-          const data = await res.json();
-          const locationName = data.timezone ? data.timezone.split('/')[1].replace('_', ' ') : '本地';
-          setWeather({ ...data, locationName });
+            const res = await fetch(
+                `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&foreground=true`
+            );
+            if (!res.ok) throw new Error('API Error');
+            const data = await res.json();
+            const locationName = data.timezone ? data.timezone.split('/')[1].replace('_', ' ') : '本地';
+            setWeather({ ...data, locationName });
         } catch (err) {
-          setError('获取失败');
+            console.warn("Weather fetch failed:", err);
+            setError('获取失败');
         } finally {
-          setLoading(false);
+            setLoading(false);
         }
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        fetchWeather(position.coords.latitude, position.coords.longitude);
       },
       (err) => {
-        console.error(err);
+        console.warn("Geolocation failed:", err);
         setError('无法定位');
         setLoading(false);
-      }
+      },
+      { timeout: 10000 }
     );
   }, []);
 
@@ -287,17 +292,23 @@ const IPCard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // ipwho.is can be flaky or rate limited. Fallback or handle error gracefully.
     fetch('https://ipwho.is/')
       .then(res => {
         if (!res.ok) throw new Error('IP API Error');
         return res.json();
       })
       .then(data => {
-        setIpData(data);
+        if(data && data.success) {
+            setIpData(data);
+        } else {
+             throw new Error("API reported failure");
+        }
         setLoading(false);
       })
       .catch(err => {
-        console.error(err);
+        console.warn("IP fetch failed, trying fallback...", err);
+        // Fallback or just set loading false
         setLoading(false);
       });
   }, []);
@@ -314,7 +325,7 @@ const IPCard: React.FC = () => {
     <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 xl:p-5 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
        {!ipData || !ipData.success ? (
            <div className="text-center">
-               <p className="text-[var(--text-secondary)] text-xs">获取失败</p>
+               <p className="text-[var(--text-secondary)] text-xs">IP 获取失败</p>
                <button onClick={() => window.location.reload()} className="mt-2 text-blue-500"><RefreshCw size={14} /></button>
            </div>
        ) : (
