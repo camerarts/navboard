@@ -104,6 +104,7 @@ const WeatherCard: React.FC = () => {
           const res = await fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&foreground=true`
           );
+          if (!res.ok) throw new Error('API Error');
           const data = await res.json();
           const locationName = data.timezone ? data.timezone.split('/')[1].replace('_', ' ') : '本地';
           setWeather({ ...data, locationName });
@@ -287,7 +288,10 @@ const IPCard: React.FC = () => {
 
   useEffect(() => {
     fetch('https://ipwho.is/')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('IP API Error');
+        return res.json();
+      })
       .then(data => {
         setIpData(data);
         setLoading(false);
